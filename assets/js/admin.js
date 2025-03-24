@@ -1,10 +1,10 @@
 document.addEventListener("DOMContentLoaded", () => {
+  loadProgramStatus();
   loadFactories();
   loadQuestions();
-  loadProgramStatus();
 });
 
-// 🔌 프로그램 오픈
+// 🔌 프로그램 오픈/종료
 function toggleProgram() {
   const open = document.getElementById("programSwitch").checked;
   db.collection("config").doc("global").set({ open }, { merge: true });
@@ -15,7 +15,7 @@ async function loadProgramStatus() {
   document.getElementById("programSwitch").checked = doc.exists ? doc.data().open : false;
 }
 
-// 🏭 공장
+// 🏭 공장 추가/삭제
 async function addFactory() {
   const name = document.getElementById("newFactory").value.trim();
   if (!name) return alert("공장명을 입력하세요.");
@@ -52,7 +52,7 @@ async function loadFactories() {
   });
 }
 
-// 🧩 문제 저장 / 수정
+// 🧩 문제 저장 or 수정
 async function saveQuestion() {
   const factory = document.getElementById("factorySelector").value;
   const text = document.getElementById("questionText").value;
@@ -72,29 +72,50 @@ async function saveQuestion() {
     const reader = new FileReader();
     reader.onload = async () => {
       imageBase64 = reader.result;
-      if (id) {
-        await db.collection("questions").doc(id).set({ factory, text, options, timeLimit, image: imageBase64 });
-      } else {
-        await db.collection("questions").add({ factory, text, options, timeLimit, image: imageBase64 });
-      }
-      alert("저장 완료 ✅");
-      document.getElementById("editQuestionId").value = "";
-      loadQuestions();
+      await saveOrUpdateQuestion(id, { factory, text, options, timeLimit, image: imageBase64 });
     };
     reader.readAsDataURL(file);
   } else {
-    if (id) {
-      await db.collection("questions").doc(id).set({ factory, text, options, timeLimit }, { merge: true });
-    } else {
-      await db.collection("questions").add({ factory, text, options, timeLimit });
-    }
-    alert("저장 완료 ✅");
-    document.getElementById("editQuestionId").value = "";
-    loadQuestions();
+    await saveOrUpdateQuestion(id, { factory, text, options, timeLimit });
   }
 }
 
-// 📦 문제 목록
+async function saveOrUpdateQuestion(id, data) {
+  if (id) {
+    await db.collection("questions").doc(id).set(data, { merge: true });
+  } else {
+    await db.collection("questions").add(data);
+  }
+  alert("문제 저장 완료 ✅");
+  document.getElementById("editQuestionId").value = "";
+  loadQuestions();
+}
+
+// 문제 수정 시 폼에 자동 채움
+async function editQuestion(id) {
+  const doc = await db.collection("questions").doc(id).get();
+  const q = doc.data();
+  document.getElementById("editQuestionId").value = id;
+  document.getElementById("factorySelector").value = q.factory;
+  document.getElementById("questionText").value = q.text;
+  document.getElementById("timeLimit").value = q.timeLimit;
+  document.getElementById("optA").value = q.options.A.text;
+  document.getElementById("costA").value = q.options.A.cost;
+  document.getElementById("optB").value = q.options.B.text;
+  document.getElementById("costB").value = q.options.B.cost;
+  document.getElementById("optC").value = q.options.C.text;
+  document.getElementById("costC").value = q.options.C.cost;
+}
+
+// 문제 삭제
+async function deleteQuestion(id) {
+  if (!confirm("문제를 삭제할까요?")) return;
+  await db.collection("questions").doc(id).delete();
+  alert("삭제 완료");
+  loadQuestions();
+}
+
+// 문제 목록 표시
 async function loadQuestions() {
   const snap = await db.collection("questions").orderBy("factory").get();
   const container = document.getElementById("questionList");
@@ -117,29 +138,7 @@ async function loadQuestions() {
   });
 }
 
-async function deleteQuestion(id) {
-  if (!confirm("정말 삭제할까요?")) return;
-  await db.collection("questions").doc(id).delete();
-  alert("삭제 완료");
-  loadQuestions();
-}
-
-async function editQuestion(id) {
-  const doc = await db.collection("questions").doc(id).get();
-  const q = doc.data();
-  document.getElementById("factorySelector").value = q.factory;
-  document.getElementById("questionText").value = q.text;
-  document.getElementById("timeLimit").value = q.timeLimit;
-  document.getElementById("optA").value = q.options.A.text;
-  document.getElementById("costA").value = q.options.A.cost;
-  document.getElementById("optB").value = q.options.B.text;
-  document.getElementById("costB").value = q.options.B.cost;
-  document.getElementById("optC").value = q.options.C.text;
-  document.getElementById("costC").value = q.options.C.cost;
-  document.getElementById("editQuestionId").value = id;
-}
-
-// 👥 팀 관리
+// 👥 팀 목록 불러오기
 async function loadTeams() {
   const container = document.getElementById("teamList");
   container.innerHTML = '';
@@ -159,6 +158,7 @@ async function loadTeams() {
   });
 }
 
+// 팀 초기화
 async function resetTeam(teamId) {
   if (!confirm(`${teamId} 팀을 초기화할까요?`)) return;
   await db.collection("teams").doc(teamId).set({ score: 0 }, { merge: true });
@@ -167,10 +167,49 @@ async function resetTeam(teamId) {
   loadTeams();
 }
 
+// 팀 삭제
 async function deleteTeam(teamId) {
   if (!confirm(`${teamId} 팀을 삭제할까요?`)) return;
   await db.collection("teams").doc(teamId).delete();
   await db.collection("answers").doc(teamId).delete();
   alert("삭제 완료");
   loadTeams();
+}
+
+// 📋 모든 팀 응답 기록 표 출력
+async function loadAnswerRecords() {
+  const snap = await db.collection("answers").get();
+  const container = document.getElementById("answerTable");
+  let html = `
+    <table>
+      <thead>
+        <tr>
+          <th>팀 ID</th>
+          <th>공장</th>
+          <th>문제 ID</th>
+          <th>선택 옵션</th>
+          <th>비용</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  snap.forEach(doc => {
+    const teamId = doc.id;
+    const records = doc.data().records || [];
+    records.forEach(r => {
+      html += `
+        <tr>
+          <td>${teamId}</td>
+          <td>${r.factory}</td>
+          <td>${r.questionId}</td>
+          <td>${r.option}</td>
+          <td>${r.cost}원</td>
+        </tr>
+      `;
+    });
+  });
+
+  html += "</tbody></table>";
+  container.innerHTML = html;
 }
