@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>공장 선택</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>공장 방문</h1>
+    <div id="scoreDisplay"></div>
+    <!-- 버튼은 JS에서 생성 -->
+  </div>
+
+  <button onclick="showRanking()" style="position:fixed;top:10px;left:10px;">순위 보기</button>
+
+  <script src="assets/js/main.js"></script>
+  <script>
+    function showRanking() {
+      const scores = JSON.parse(localStorage.getItem("scores") || "{}");
+      const sorted = Object.entries(scores).sort((a, b) => a[1] - b[1]);
+
+      let html = "<h3>순위</h3><ol>";
+      sorted.forEach(([team]) => html += `<li>${team}</li>`);
+      html += "</ol>";
+
+      const popup = window.open("", "Ranking", "width=300,height=400");
+      popup.document.write(`<body style="font-family:sans-serif;padding:20px;">${html}</body>`);
+    }
+  </script>
+</body>
+</html>

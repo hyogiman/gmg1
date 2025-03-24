@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Panel</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <script>
+    if (localStorage.getItem("adminLoggedIn") !== "true") {
+      alert("로그인이 필요합니다.");
+      window.location.href = "admin-login.html";
+    }
+  </script>
+
+  <div class="container">
+    <h1>🛠️ 관리자 페이지</h1>
+
+    <!-- 메뉴 -->
+    <nav>
+      <button onclick="showSection('program')">🔓 시작 설정</button>
+      <button onclick="showSection('question')">📌 문제 등록</button>
+      <button onclick="showSection('factory')">🏭 공장 관리</button>
+      <button onclick="showSection('team')">👥 팀 관리</button>
+      <button onclick="showSection('result')">📤 결과 복사</button>
+      <button onclick="adminLogout()">🔐 로그아웃</button>
+    </nav>
+
+    <!-- 각 섹션 -->
+    <div id="section-program" class="section active">
+      <h2>🟢 프로그램 시작 여부</h2>
+      <label>
+        <input type="checkbox" id="programSwitch" onchange="toggleProgram()">
+        프로그램 오픈 (체크 시 참가자 입장 가능)
+      </label>
+    </div>
+
+    <div id="section-question" class="section">
+      <h2>📌 문제 등록</h2>
+      <label for="factorySelector">공장 선택</label><br />
+      <select id="factorySelector"></select><br><br>
+      <textarea id="questionText" placeholder="문제 내용을 입력하세요" rows="3"></textarea><br>
+      <input type="file" id="questionImage" accept="image/*" /><br>
+      <input type="number" id="timeLimit" placeholder="제한 시간 (초, 기본 60)" /><br><br>
+      <input type="text" id="optA" placeholder="선택지 A" />
+      <input type="number" id="costA" placeholder="비용 A" /><br>
+      <input type="text" id="optB" placeholder="선택지 B" />
+      <input type="number" id="costB" placeholder="비용 B" /><br>
+      <input type="text" id="optC" placeholder="선택지 C" />
+      <input type="number" id="costC" placeholder="비용 C" /><br>
+      <button onclick="saveQuestion()">문제 저장</button>
+    </div>
+
+    <div id="section-factory" class="section">
+      <h2>🏭 공장 등록</h2>
+      <input type="text" id="newFactory" placeholder="예: AI라인" />
+      <button onclick="addFactory()">공장 추가</button>
+      <div id="factoryProblems" style="margin-top: 20px;"></div>
+    </div>
+
+    <div id="section-team" class="section">
+      <h2>📊 팀 점수 현황</h2>
+      <label>
+        <input type="checkbox" id="sortDescending" onchange="renderTeams()">
+        높은 점수가 1등 (내림차순)
+      </label>
+      <div id="teamStatus" style="margin-top:10px;"></div>
+      <h3>📝 문제 선택 내역</h3>
+      <div id="teamAnswers"></div>
+      <h3>🧹 팀 삭제</h3>
+      <input type="text" id="deleteTeamId" placeholder="삭제할 팀 ID 입력" />
+      <button onclick="deleteTeam()">팀 삭제</button>
+    </div>
+
+    <div id="section-result" class="section">
+      <h2>📤 팀별 결과 복사용 테이블</h2>
+      <button onclick="exportToTable()">결과 보기</button>
+      <div id="resultTableContainer" style="margin-top: 20px;"></div>
+    </div>
+  </div>
+
+  <script src="assets/js/admin.js"></script>
+  <script>
+    function showSection(name) {
+      document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+      document.getElementById(`section-${name}`).classList.add("active");
+    }
+    function adminLogout() {
+      localStorage.removeItem("adminLoggedIn");
+      location.href = "admin-login.html";
+    }
+  </script>
+</body>
+</html>
