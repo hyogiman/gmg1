@@ -6,6 +6,13 @@
   <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
+  <script>
+document.addEventListener("DOMContentLoaded", async () => {
+  await checkProgramOpen(); // ← 가장 상단에 추가!
+  // 기존 내용: 팀ID, 공장 로딩 등
+});
+
+</script>
   <div class="container">
     <h1>👥 신규 팀 등록</h1>
     <input type="text" id="registerId" placeholder="팀 ID" />

@@ -16,10 +16,17 @@
 </head>
 <body>
   <script>
+
+document.addEventListener("DOMContentLoaded", async () => {
+  await checkProgramOpen(); // ← 가장 상단에 추가!
+  // 기존 내용: 팀ID, 공장 로딩 등
+});
+
     if (!localStorage.getItem("currentTeam")) {
       alert("로그인이 필요합니다.");
       location.href = "index.html";
     }
+
   </script>
 
   <div id="scoreDisplay"></div>

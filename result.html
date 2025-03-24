@@ -24,6 +24,14 @@
   </style>
 </head>
 <body>
+
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+  await checkProgramOpen(); // ← 가장 상단에 추가!
+  // 기존 내용: 팀ID, 공장 로딩 등
+});
+
+</script>
   <div class="container">
     <h1>📊 최종 결과</h1>
     <button onclick="loadResults()">결과 불러오기</button>
