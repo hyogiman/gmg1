@@ -5,29 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>공장 선택</title>
   <link rel="stylesheet" href="assets/css/style.css">
+  <style>
+    .fixed-top-buttons {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      display: flex;
+      gap: 10px;
+      z-index: 1000;
+    }
+    .factory-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-top: 40px;
+    }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h1>공장 방문</h1>
-    <div id="scoreDisplay"></div>
-    <!-- 버튼은 JS에서 생성 -->
+  <div class="fixed-top-buttons">
+    <button onclick="showRanking()">순위 보기</button>
   </div>
 
-  <button onclick="showRanking()" style="position:fixed;top:10px;left:10px;">순위 보기</button>
+  <div id="scoreDisplay"></div>
+
+  <div class="container">
+    <h1>공장 방문</h1>
+    <div id="factoryList" class="factory-buttons"></div>
+  </div>
 
   <script src="assets/js/main.js"></script>
-  <script>
-    function showRanking() {
-      const scores = JSON.parse(localStorage.getItem("scores") || "{}");
-      const sorted = Object.entries(scores).sort((a, b) => a[1] - b[1]);
-
-      let html = "<h3>순위</h3><ol>";
-      sorted.forEach(([team]) => html += `<li>${team}</li>`);
-      html += "</ol>";
-
-      const popup = window.open("", "Ranking", "width=300,height=400");
-      popup.document.write(`<body style="font-family:sans-serif;padding:20px;">${html}</body>`);
-    }
-  </script>
 </body>
 </html>
