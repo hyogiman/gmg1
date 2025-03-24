@@ -1,4 +1,4 @@
-// Firebase SDK 초기화
+// Firebase SDK 연결
 const firebaseConfig = {
   apiKey: "AIzaSyCCxRR6hXvk9Z17eK8H_Vov_TbGX8LzvDs",
   authDomain: "factory-sim01v.firebaseapp.com",

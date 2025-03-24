@@ -1,24 +1,16 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>공장 선택</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="assets/css/style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="assets/css/style.css" />
   <style>
     .factory-buttons {
       display: flex;
       flex-direction: column;
       gap: 15px;
       margin-top: 40px;
-    }
-    .fixed-top-buttons {
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      display: flex;
-      gap: 10px;
-      z-index: 1000;
     }
   </style>
 </head>
@@ -30,18 +22,14 @@
     }
   </script>
 
-  <div class="fixed-top-buttons">
-    <button onclick="showRanking()">순위 보기</button>
-  </div>
-
   <div id="scoreDisplay"></div>
 
   <div class="container">
-    <h1>🏭 공장 방문</h1>
+    <h1>🏭 공장 선택</h1>
     <div id="factoryList" class="factory-buttons"></div>
   </div>
 
-  <!-- Firebase SDK + 초기화 -->
+  <!-- Firebase SDK + Init -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>

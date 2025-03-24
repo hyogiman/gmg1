@@ -3,88 +3,77 @@ document.addEventListener("DOMContentLoaded", async () => {
   const factory = localStorage.getItem("currentFactory");
   document.getElementById("factoryName").innerText = `${factory} 공장 문제`;
 
+  // 1. 푼 문제 목록 가져오기
   const solvedSnap = await db.collection("answers").doc(team).get();
   const solvedIds = solvedSnap.exists ? solvedSnap.data().solved || [] : [];
 
-  const snapshot = await db.collection("questions").where("factory", "==", factory).get();
-  const questions = snapshot.docs
+  // 2. 해당 공장 문제 가져오기
+  const snapshot = await db.collection("questions")
+    .where("factory", "==", factory)
+    .get();
+
+  const available = snapshot.docs
     .map(doc => ({ id: doc.id, ...doc.data() }))
     .filter(q => !solvedIds.includes(q.id));
 
-  if (questions.length === 0) {
-    alert(`${factory} 공장에 남은 문제가 없습니다.`);
+  if (available.length === 0) {
+    alert("남은 문제가 없습니다. 메인으로 돌아갑니다.");
     return location.href = "main.html";
   }
 
-  const q = questions[Math.floor(Math.random() * questions.length)];
+  const q = available[Math.floor(Math.random() * available.length)];
   renderQuestion(q, team);
 });
 
 function renderQuestion(q, team) {
   const container = document.getElementById("questionContainer");
+  container.innerHTML = '';
 
-  const p = document.createElement("p");
-  p.innerText = q.text;
-  container.appendChild(p);
-
+  container.innerHTML += `<p>${q.text}</p>`;
   if (q.image) {
-    const img = document.createElement("img");
-    img.src = q.image;
-    img.style.maxWidth = "100%";
-    container.appendChild(img);
+    container.innerHTML += `<img src="${q.image}" style="max-width:100%; margin:10px 0;" />`;
   }
 
   ["A", "B", "C"].forEach(opt => {
     const btn = document.createElement("button");
     btn.innerText = `옵션 ${opt}: ${q.options[opt].text} (${q.options[opt].cost}원)`;
-    btn.onclick = () => submitAnswer(team, q, opt);
+    btn.onclick = () => submitAnswer(team, q, opt, q.options[opt].cost);
     container.appendChild(btn);
   });
 
   startCountdown(q.timeLimit || 60, () => {
-    alert("⏰ 시간 초과! 이 문제는 실패 처리됩니다.");
-    submitAnswer(team, q, "실패", 0, true);
+    alert("⏰ 시간 초과! 문제 실패로 처리됩니다.");
+    submitAnswer(team, q, "시간초과", 0, true);
   });
 }
 
-function startCountdown(time, onTimeout) {
-  let remaining = time;
-  updateTimerUI(remaining);
+function startCountdown(seconds, onTimeout) {
+  let remain = seconds;
+  const timerEl = document.getElementById("timerDisplay");
 
-  const timer = setInterval(() => {
-    remaining--;
-    updateTimerUI(remaining);
-
-    if (remaining <= 0) {
-      clearInterval(timer);
+  const countdown = setInterval(() => {
+    timerEl.innerText = `남은 시간: ${remain--}초`;
+    if (remain < 0) {
+      clearInterval(countdown);
       onTimeout();
     }
   }, 1000);
 }
 
-function updateTimerUI(seconds) {
-  const el = document.getElementById("timerDisplay");
-  if (el) el.innerText = `⏳ 남은 시간: ${seconds}초`;
-}
-
 async function submitAnswer(team, q, option, cost = 0, isFail = false) {
-  const selectedCost = isFail ? 0 : q.options[option].cost;
-
-  // 기록 저장
   const ref = db.collection("answers").doc(team);
   const snap = await ref.get();
-  const prev = snap.exists ? snap.data().records || [] : [];
+  const records = snap.exists ? snap.data().records || [] : [];
   const solved = snap.exists ? snap.data().solved || [] : [];
 
-  prev.push({ questionId: q.id, factory: q.factory, option, cost: selectedCost });
+  records.push({ questionId: q.id, factory: q.factory, option, cost });
   solved.push(q.id);
 
-  await ref.set({ records: prev, solved }, { merge: true });
+  await ref.set({ records, solved }, { merge: true });
 
-  // 점수 갱신
-  const total = prev.reduce((sum, r) => sum + r.cost, 0);
+  const total = records.reduce((sum, r) => sum + r.cost, 0);
   await db.collection("teams").doc(team).set({ score: total }, { merge: true });
 
-  alert(`제출 완료! 내 누적 비용: ${total}원`);
+  alert(isFail ? "문제 실패 처리됨." : `제출 완료! 누적 비용: ${total}원`);
   location.href = "main.html";
 }

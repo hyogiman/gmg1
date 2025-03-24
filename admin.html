@@ -1,9 +1,27 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>Admin</title>
-  <link rel="stylesheet" href="assets/css/style.css">
+  <meta charset="UTF-8" />
+  <title>Admin Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <style>
+    .section { display: none; }
+    .section.active { display: block; }
+    nav button {
+      flex: 1;
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 10px;
+      margin: 5px 2px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    nav button:hover {
+      background-color: #495057;
+    }
+  </style>
 </head>
 <body>
   <script>
@@ -16,49 +34,74 @@
   <div class="container">
     <h1>🛠️ 관리자 패널</h1>
 
-    <!-- 프로그램 시작 스위치 -->
-    <section>
-      <h2>프로그램 시작</h2>
-      <label>
-        <input type="checkbox" id="programSwitch" onchange="toggleProgram()" />
-        프로그램 오픈
-      </label>
+    <nav>
+      <button onclick="showSection('program')">🔌 프로그램 제어</button>
+      <button onclick="showSection('factory')">🏭 공장 관리</button>
+      <button onclick="showSection('question')">🧩 문제 등록</button>
+      <button onclick="showSection('questionList')">📦 문제 목록</button>
+      <button onclick="showSection('teams')">👥 팀 관리</button>
+    </nav>
+
+    <!-- 프로그램 상태 -->
+    <section id="section-program" class="section">
+      <h2>🔌 프로그램 제어</h2>
+      <label><input type="checkbox" id="programSwitch" onchange="toggleProgram()" /> 프로그램 오픈</label>
     </section>
 
-    <!-- 공장 추가 -->
-    <section>
-      <h2>공장 등록</h2>
-      <input type="text" id="newFactory" placeholder="예: AI라인" />
+    <!-- 공장 관리 -->
+    <section id="section-factory" class="section">
+      <h2>🏭 공장 관리</h2>
+      <input type="text" id="newFactory" placeholder="공장 이름 입력" />
       <button onclick="addFactory()">공장 추가</button>
+      <ul id="factoryList"></ul>
     </section>
 
     <!-- 문제 등록 -->
-    <section>
-      <h2>문제 등록</h2>
+    <section id="section-question" class="section">
+      <h2>🧩 문제 등록</h2>
       <select id="factorySelector"></select><br />
-      <textarea id="questionText" placeholder="문제 입력" rows="3"></textarea><br />
+      <textarea id="questionText" placeholder="문제 내용 입력"></textarea><br />
       <input type="file" id="questionImage" accept="image/*" /><br />
-      <input type="number" id="timeLimit" placeholder="제한시간 (초)" /><br />
+      <input type="number" id="timeLimit" placeholder="제한시간(초)" /><br />
+
       <input type="text" id="optA" placeholder="옵션 A" />
       <input type="number" id="costA" placeholder="비용 A" /><br />
       <input type="text" id="optB" placeholder="옵션 B" />
       <input type="number" id="costB" placeholder="비용 B" /><br />
       <input type="text" id="optC" placeholder="옵션 C" />
       <input type="number" id="costC" placeholder="비용 C" /><br />
+
       <button onclick="saveQuestion()">문제 저장</button>
     </section>
 
-    <!-- 등록된 문제 목록 -->
-    <section>
-      <h2>문제 관리</h2>
+    <!-- 문제 목록 -->
+    <section id="section-questionList" class="section">
+      <h2>📦 문제 목록</h2>
       <div id="questionList"></div>
+    </section>
+
+    <!-- 팀 관리 -->
+    <section id="section-teams" class="section">
+      <h2>👥 팀 관리</h2>
+      <button onclick="loadTeams()">팀 목록 불러오기</button>
+      <div id="teamList"></div>
     </section>
   </div>
 
-  <!-- Firebase SDK -->
+  <!-- Firebase SDK + Scripts -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
   <script src="assets/js/admin.js"></script>
+
+  <script>
+    function showSection(target) {
+      document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
+      document.getElementById(`section-${target}`).classList.add('active');
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+      showSection('program');
+    });
+  </script>
 </body>
 </html>

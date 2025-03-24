@@ -1,20 +1,22 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>최종 결과</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/style.css" />
   <style>
     table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 20px;
+      font-size: 0.95rem;
     }
     th, td {
       border: 1px solid #ccc;
       padding: 10px;
       text-align: left;
+      vertical-align: top;
     }
     tr:nth-child(even) {
       background-color: #f9f9f9;
@@ -32,50 +34,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
-  <script>
-    async function loadResults() {
-      const teamsSnap = await db.collection("teams").get();
-      const answersSnap = await db.collection("answers").get();
-
-      const answersMap = {};
-      answersSnap.forEach(doc => {
-        answersMap[doc.id] = doc.data().records || [];
-      });
-
-      const rows = [];
-      teamsSnap.forEach(doc => {
-        const id = doc.id;
-        const score = doc.data().score || 0;
-        const answers = answersMap[id] || [];
-        rows.push({ id, score, answers });
-      });
-
-      rows.sort((a, b) => a.score - b.score);
-
-      let html = `
-        <table>
-          <tr>
-            <th>순위</th>
-            <th>팀 ID</th>
-            <th>점수</th>
-            <th>풀이 기록</th>
-          </tr>
-      `;
-      rows.forEach((r, i) => {
-        const logs = r.answers.map(a => `[${a.factory}] ${a.option} (${a.cost}원)`).join("<br>");
-        html += `
-          <tr>
-            <td>${i + 1}</td>
-            <td>${r.id}</td>
-            <td>${r.score}원</td>
-            <td>${logs}</td>
-          </tr>
-        `;
-      });
-      html += "</table>";
-
-      document.getElementById("resultTableContainer").innerHTML = html;
-    }
-  </script>
+  <script src="assets/js/result.js"></script>
 </body>
 </html>

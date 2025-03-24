@@ -1,39 +1,23 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>팀 등록</title>
-  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
   <div class="container">
     <h1>👥 신규 팀 등록</h1>
-    <input type="text" id="teamId" placeholder="팀 ID">
-    <input type="password" id="teamPw" placeholder="비밀번호">
+    <input type="text" id="registerId" placeholder="팀 ID" />
+    <input type="password" id="registerPw" placeholder="비밀번호" />
     <button onclick="registerTeam()">등록</button>
-    <button onclick="location.href='index.html'">← 로그인으로</button>
+    <button onclick="location.href='index.html'">← 돌아가기</button>
   </div>
 
-  <!-- Firebase SDK -->
+  <!-- Firebase SDK + Init -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
-  <script>
-    async function registerTeam() {
-      const id = document.getElementById("teamId").value;
-      const pw = document.getElementById("teamPw").value;
-      if (!id || !pw) return alert("ID와 비밀번호를 입력하세요.");
-
-      const doc = await db.collection("teams").doc(id).get();
-      if (doc.exists) return alert("이미 존재하는 팀입니다.");
-
-      await db.collection("teams").doc(id).set({
-        password: pw,
-        score: 0
-      });
-      alert("등록 완료 ✅");
-      location.href = "index.html";
-    }
-  </script>
+  <script src="assets/js/auth.js"></script>
 </body>
 </html>
