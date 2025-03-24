@@ -2,16 +2,80 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>최종 결과</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="assets/css/style.css">
+  <style>
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: left;
+    }
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
-    <h1>최종 결과</h1>
-    <div id="scoreDisplay" style="position: fixed; top: 10px; right: 10px;"></div>
-    <p>개인 점수는 우측 상단에 표시됩니다. 전체 리더보드는 Admin만 볼 수 있습니다.</p>
+    <h1>📊 최종 결과</h1>
+    <button onclick="loadResults()">결과 불러오기</button>
+    <div id="resultTableContainer"></div>
   </div>
-  <script src="assets/js/result.js"></script>
+
+  <!-- Firebase SDK + Init -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="assets/js/firebase-init.js"></script>
+  <script>
+    async function loadResults() {
+      const teamsSnap = await db.collection("teams").get();
+      const answersSnap = await db.collection("answers").get();
+
+      const answersMap = {};
+      answersSnap.forEach(doc => {
+        answersMap[doc.id] = doc.data().records || [];
+      });
+
+      const rows = [];
+      teamsSnap.forEach(doc => {
+        const id = doc.id;
+        const score = doc.data().score || 0;
+        const answers = answersMap[id] || [];
+        rows.push({ id, score, answers });
+      });
+
+      rows.sort((a, b) => a.score - b.score);
+
+      let html = `
+        <table>
+          <tr>
+            <th>순위</th>
+            <th>팀 ID</th>
+            <th>점수</th>
+            <th>풀이 기록</th>
+          </tr>
+      `;
+      rows.forEach((r, i) => {
+        const logs = r.answers.map(a => `[${a.factory}] ${a.option} (${a.cost}원)`).join("<br>");
+        html += `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${r.id}</td>
+            <td>${r.score}원</td>
+            <td>${logs}</td>
+          </tr>
+        `;
+      });
+      html += "</table>";
+
+      document.getElementById("resultTableContainer").innerHTML = html;
+    }
+  </script>
 </body>
 </html>

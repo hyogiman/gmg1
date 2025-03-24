@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Admin 로그인</title>
-  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
   <div class="container">
@@ -12,13 +13,14 @@
     <input type="password" id="adminPw" placeholder="Password">
     <button onclick="adminLogin()">로그인</button>
   </div>
+
   <script>
     function adminLogin() {
       const id = document.getElementById("adminId").value;
       const pw = document.getElementById("adminPw").value;
       if (id === "admin" && pw === "admin") {
         localStorage.setItem("adminLoggedIn", "true");
-        window.location.href = "admin.html";
+        location.href = "admin.html";
       } else {
         alert("ID 또는 비밀번호가 틀렸습니다.");
       }

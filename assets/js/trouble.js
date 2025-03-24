@@ -1,91 +1,90 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const factory = localStorage.getItem("currentFactory");
-  const questions = JSON.parse(localStorage.getItem("questions") || "{}");
+document.addEventListener("DOMContentLoaded", async () => {
   const team = localStorage.getItem("currentTeam");
+  const factory = localStorage.getItem("currentFactory");
+  document.getElementById("factoryName").innerText = `${factory} 공장 문제`;
 
-  const solvedRecords = JSON.parse(localStorage.getItem("solvedQuestionIds") || "{}");
-  if (!solvedRecords[team]) solvedRecords[team] = [];
+  const solvedSnap = await db.collection("answers").doc(team).get();
+  const solvedIds = solvedSnap.exists ? solvedSnap.data().solved || [] : [];
 
-  const factoryQuestions = questions[factory] || [];
-  const unsolved = factoryQuestions.filter(q => !solvedRecords[team].includes(q.id));
+  const snapshot = await db.collection("questions").where("factory", "==", factory).get();
+  const questions = snapshot.docs
+    .map(doc => ({ id: doc.id, ...doc.data() }))
+    .filter(q => !solvedIds.includes(q.id));
 
-  if (unsolved.length === 0) {
+  if (questions.length === 0) {
     alert(`${factory} 공장에 남은 문제가 없습니다.`);
-    window.location.href = "main.html";
-    return;
+    return location.href = "main.html";
   }
 
-  const q = unsolved[Math.floor(Math.random() * unsolved.length)];
-  localStorage.setItem("currentQuestionId", q.id);
+  const q = questions[Math.floor(Math.random() * questions.length)];
+  renderQuestion(q, team);
+});
 
-  const container = document.querySelector('.container');
-  container.innerHTML += `<h2>${factory} 공장 문제</h2>`;
+function renderQuestion(q, team) {
+  const container = document.getElementById("questionContainer");
 
-  // 타이머 표시
-  const timerDiv = document.createElement("div");
-  timerDiv.id = "timerDisplay";
-  timerDiv.style = "font-weight:bold; font-size:1.2rem; margin-bottom:10px; color:#d6336c;";
-  container.appendChild(timerDiv);
-
-  container.innerHTML += `<p>${q.text}</p>`;
+  const p = document.createElement("p");
+  p.innerText = q.text;
+  container.appendChild(p);
 
   if (q.image) {
-    container.innerHTML += `<img src="${q.image}" style="max-width: 100%; margin-bottom: 20px;" />`;
+    const img = document.createElement("img");
+    img.src = q.image;
+    img.style.maxWidth = "100%";
+    container.appendChild(img);
   }
 
   ["A", "B", "C"].forEach(opt => {
-    const b = document.createElement("button");
-    b.innerText = `옵션 ${opt}: ${q.options[opt].text} (${q.options[opt].cost}원)`;
-    b.onclick = () => submitAnswer(opt, q.options[opt].cost, q.id);
-    container.appendChild(b);
+    const btn = document.createElement("button");
+    btn.innerText = `옵션 ${opt}: ${q.options[opt].text} (${q.options[opt].cost}원)`;
+    btn.onclick = () => submitAnswer(team, q, opt);
+    container.appendChild(btn);
   });
 
-  // 타이머 카운트다운
-  const time = q.timeLimit || 60;
+  startCountdown(q.timeLimit || 60, () => {
+    alert("⏰ 시간 초과! 이 문제는 실패 처리됩니다.");
+    submitAnswer(team, q, "실패", 0, true);
+  });
+}
+
+function startCountdown(time, onTimeout) {
   let remaining = time;
   updateTimerUI(remaining);
 
-  const countdown = setInterval(() => {
+  const timer = setInterval(() => {
     remaining--;
     updateTimerUI(remaining);
 
     if (remaining <= 0) {
-      clearInterval(countdown);
-      alert("⏰ 시간 초과! 이 문제는 실패로 기록됩니다.");
-      markQuestionAsFailed(q.id);
-      window.location.href = "main.html";
+      clearInterval(timer);
+      onTimeout();
     }
   }, 1000);
-});
+}
 
 function updateTimerUI(seconds) {
   const el = document.getElementById("timerDisplay");
   if (el) el.innerText = `⏳ 남은 시간: ${seconds}초`;
 }
 
-function submitAnswer(option, cost, questionId) {
-  const team = localStorage.getItem("currentTeam");
-  let records = JSON.parse(localStorage.getItem("troubleRecords") || "{}");
-  if (!records[team]) records[team] = [];
-  records[team].push({ factory: localStorage.getItem("currentFactory"), option, cost, qid: questionId });
-  localStorage.setItem("troubleRecords", JSON.stringify(records));
+async function submitAnswer(team, q, option, cost = 0, isFail = false) {
+  const selectedCost = isFail ? 0 : q.options[option].cost;
 
-  let solved = JSON.parse(localStorage.getItem("solvedQuestionIds") || "{}");
-  if (!solved[team]) solved[team] = [];
-  solved[team].push(questionId);
-  localStorage.setItem("solvedQuestionIds", JSON.stringify(solved));
+  // 기록 저장
+  const ref = db.collection("answers").doc(team);
+  const snap = await ref.get();
+  const prev = snap.exists ? snap.data().records || [] : [];
+  const solved = snap.exists ? snap.data().solved || [] : [];
 
-  let scores = JSON.parse(localStorage.getItem("scores") || "{}");
-  scores[team] = records[team].reduce((sum, r) => sum + r.cost, 0);
-  localStorage.setItem("scores", JSON.stringify(scores));
+  prev.push({ questionId: q.id, factory: q.factory, option, cost: selectedCost });
+  solved.push(q.id);
 
-  window.location.href = "main.html";
-}
+  await ref.set({ records: prev, solved }, { merge: true });
 
-function markQuestionAsFailed(questionId) {
-  const team = localStorage.getItem("currentTeam");
-  let solved = JSON.parse(localStorage.getItem("solvedQuestionIds") || "{}");
-  if (!solved[team]) solved[team] = [];
-  solved[team].push(questionId);
-  localStorage.setItem("solvedQuestionIds", JSON.stringify(solved));
+  // 점수 갱신
+  const total = prev.reduce((sum, r) => sum + r.cost, 0);
+  await db.collection("teams").doc(team).set({ score: total }, { merge: true });
+
+  alert(`제출 완료! 내 누적 비용: ${total}원`);
+  location.href = "main.html";
 }
