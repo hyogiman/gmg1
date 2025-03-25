@@ -30,31 +30,15 @@
       document.getElementById("score").innerText = doc.exists ? (doc.data().score || 0) + "원" : "-";
     }
 
-    async function checkProgramStatus() {
-      const config = await db.collection("config").doc("global").get();
-      if (config.exists && config.data().open === false) {
-        alert("아직 프로그램 시작 시간이 아닙니다.");
-        location.href = "index.html";
-      }
-    }
+    async function openCodePrompt() {
+      const inputCode = prompt("공장 입장 코드 입력:");
+      if (!inputCode || inputCode.length !== 4) return alert("4자리 숫자 코드를 입력하세요.");
 
-    function logout() {
-      localStorage.clear();
-      location.href = "index.html";
-    }
+      const snap = await db.collection("factories").where("code", "==", inputCode).get();
+      if (snap.empty) return alert("유효하지 않은 코드입니다.");
 
-    function openCodePrompt() {
-      const code = prompt("공장 입장 코드 입력:");
-      const codeMap = {
-        "1234": "BPA",
-        "5678": "UTILITY"
-      };
-      const factory = codeMap[code];
-      if (!factory) {
-        alert("잘못된 코드입니다.");
-        return;
-      }
-      localStorage.setItem("currentFactory", factory);
+      const factoryName = snap.docs[0].id;
+      localStorage.setItem("currentFactory", factoryName);
       location.href = "trouble.html";
     }
 
@@ -70,7 +54,11 @@
       }
     }
 
-    checkProgramStatus();
+    function logout() {
+      localStorage.clear();
+      location.href = "index.html";
+    }
+
     fetchScore();
   </script>
 </body>
