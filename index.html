@@ -1,24 +1,44 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>팀 로그인</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
   <div class="container">
-    <h1>팀 로그인</h1>
+    <h1>🏁 팀 로그인</h1>
     <input type="text" id="teamId" placeholder="팀 ID" />
     <input type="password" id="teamPw" placeholder="비밀번호" />
     <button onclick="login()">로그인</button>
-    <p><a href="register.html">신규 팀 등록</a></p>
+    <p><a href="register.html">+ 신규 팀 등록</a></p>
   </div>
 
-  <!-- Firebase -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
-  <script src="assets/js/auth.js"></script>
+  <script>
+    async function login() {
+      const id = document.getElementById("teamId").value.trim();
+      const pw = document.getElementById("teamPw").value.trim();
+      if (!id || !pw) return alert("모든 값을 입력해주세요.");
+
+      const doc = await db.collection("teams").doc(id).get();
+      if (!doc.exists) return alert("존재하지 않는 팀입니다.");
+      if (doc.data().password !== pw) return alert("비밀번호가 틀렸습니다.");
+
+      // 🔒 프로그램 오픈 상태 확인
+      const config = await db.collection("config").doc("global").get();
+      if (config.exists && config.data().open === false) {
+        alert("아직 프로그램 시작 시간이 아닙니다.");
+        return;
+      }
+
+      localStorage.setItem("currentTeam", id);
+      location.href = "home.html";
+    }
+  </script>
 </body>
 </html>
