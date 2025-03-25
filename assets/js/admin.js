@@ -1,3 +1,10 @@
+document.addEventListener("DOMContentLoaded", () => {
+  loadProgramStatus();
+  loadFactories();
+  loadTeams();
+  loadQuestions();
+});
+
 // 🔌 프로그램 제어
 async function toggleProgram() {
   const state = document.getElementById("programSwitch").checked;
