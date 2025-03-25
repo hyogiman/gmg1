@@ -1,27 +1,28 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Admin Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
   <div class="container">
     <h1>🔐 관리자 로그인</h1>
-    <input type="text" id="adminId" placeholder="ID" />
-    <input type="password" id="adminPw" placeholder="Password" />
+    <input type="text" id="adminId" placeholder="ID (기본: admin)" />
+    <input type="password" id="adminPw" placeholder="Password (기본: admin)" />
     <button onclick="adminLogin()">로그인</button>
   </div>
 
   <script>
     function adminLogin() {
-      const id = document.getElementById("adminId").value;
-      const pw = document.getElementById("adminPw").value;
+      const id = document.getElementById("adminId").value.trim();
+      const pw = document.getElementById("adminPw").value.trim();
       if (id === "admin" && pw === "admin") {
-        localStorage.setItem("adminLoggedIn", "true");
+        localStorage.setItem("adminAuth", "true");
         location.href = "admin.html";
       } else {
-        alert("ID 또는 비밀번호가 틀렸습니다.");
+        alert("❌ 로그인 실패");
       }
     }
   </script>
