@@ -5,42 +5,46 @@
   <title>문제 풀이</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="assets/css/style.css" />
-  <style>
-    #timerDisplay {
-      font-size: 1.2rem;
-      font-weight: bold;
-      margin-bottom: 10px;
-      color: #d6336c;
-    }
-  </style>
 </head>
 <body>
   <script>
-
-
     if (!localStorage.getItem("currentTeam")) {
       alert("로그인이 필요합니다.");
       location.href = "index.html";
     }
-
-document.addEventListener("DOMContentLoaded", async () => {
-  await checkProgramOpen(); // ← 가장 상단에 추가!
-  // 기존 내용: 팀ID, 공장 로딩 등
-});
-
-
   </script>
 
   <div class="container">
-    <h1 id="factoryName"></h1>
+    <h1 id="factoryName">문제 로딩 중...</h1>
     <div id="timerDisplay"></div>
     <div id="questionContainer"></div>
   </div>
 
-  <!-- Firebase SDK + Init -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
+  <script>
+    async function checkProgramOpen() {
+      const doc = await db.collection("config").doc("global").get();
+      const isOpen = doc.exists ? doc.data().open : false;
+      if (!isOpen) {
+        alert("⛔ 프로그램이 아직 시작되지 않았습니다.");
+        location.href = "main.html";
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      await checkProgramOpen();
+      const factory = localStorage.getItem("currentFactory");
+      if (!factory) {
+        alert("공장을 먼저 선택하세요.");
+        return location.href = "main.html";
+      }
+
+      // 나머지 문제 로딩 및 타이머 로직은 trouble.js에서 처리
+    });
+  </script>
   <script src="assets/js/trouble.js"></script>
 </body>
 </html>
