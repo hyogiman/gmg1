@@ -52,7 +52,7 @@ function renderQuestion(teamId, q) {
 
   for (let opt of ["A", "B", "C"]) {
     const btn = document.createElement("button");
-    btn.innerText = `옵션 ${opt}: ${q.options[opt].text} (${q.options[opt].cost}원)`;
+    btn.innerText = `옵션 ${opt}: ${q.options[opt].text}`; // ✅ 비용 제거
     btn.onclick = () => submitAnswer(teamId, q, opt, q.options[opt].cost);
     container.appendChild(btn);
   }
@@ -64,7 +64,6 @@ function renderQuestion(teamId, q) {
     submitAnswer(teamId, q, "시간초과", 0, true);
   });
 }
-
 function startCountdown(seconds, onTimeout) {
   const timerEl = document.getElementById("timerDisplay");
   let remain = seconds;
