@@ -1,22 +1,68 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <title>팀 홈</title>
+  <meta charset="UTF-8">
+  <title>홈</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
   <div class="container">
     <h1>🏠 홈</h1>
-    <div id="teamInfo"></div>
-    <button onclick="openCodeInput()">코드 입력</button>
+    <p>팀: <strong id="teamName"></strong></p>
+    <p>현재 점수: <span id="score"></span></p>
+
+    <button onclick="openCodePrompt()">공장 코드 입력</button>
+    <button onclick="viewRanking()">순위 보기</button>
     <button onclick="logout()">로그아웃</button>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
-  <script src="assets/js/home.js"></script>
+  <script>
+    const teamId = localStorage.getItem("currentTeam");
+    if (!teamId) location.href = "index.html";
+    document.getElementById("teamName").innerText = teamId;
+
+    async function fetchScore() {
+      const doc = await db.collection("teams").doc(teamId).get();
+      document.getElementById("score").innerText = doc.exists ? (doc.data().score || 0) + "원" : "-";
+    }
+
+    function logout() {
+      localStorage.clear();
+      location.href = "index.html";
+    }
+
+    function openCodePrompt() {
+      const code = prompt("공장 입장 코드 입력:");
+      const codeMap = {
+        "1234": "BPA",
+        "5678": "UTILITY"
+      };
+      const factory = codeMap[code];
+      if (!factory) {
+        alert("잘못된 코드입니다.");
+        return;
+      }
+      localStorage.setItem("currentFactory", factory);
+      location.href = "trouble.html";
+    }
+
+    async function viewRanking() {
+      const snap = await db.collection("teams").orderBy("score", "asc").get();
+      let rank = 1;
+      for (const doc of snap.docs) {
+        if (doc.id === teamId) {
+          alert(`현재 순위: ${rank}등`);
+          return;
+        }
+        rank++;
+      }
+    }
+
+    fetchScore();
+  </script>
 </body>
 </html>
