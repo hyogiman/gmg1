@@ -1,4 +1,4 @@
-// === 🔌 프로그램 상태 제어 ===
+// 🔌 프로그램 제어
 async function toggleProgram() {
   const state = document.getElementById("programSwitch").checked;
   await db.collection("config").doc("global").set({ open: state }, { merge: true });
@@ -11,17 +11,15 @@ async function loadProgramStatus() {
   document.getElementById("programStatusText").innerText = open ? "실행 중" : "중단됨";
 }
 
-// === 🏭 공장 관리 ===
+// 🏭 공장 관리
 async function addFactory() {
   const name = document.getElementById("newFactoryName").value.trim();
   const code = document.getElementById("newFactoryCode").value.trim();
   if (!name || !code || code.length !== 4 || isNaN(code)) return alert("공장명과 4자리 숫자 코드를 입력하세요.");
-
   const exists = await db.collection("factories").doc(name).get();
   const codeUsed = await db.collection("factories").where("code", "==", code).get();
   if (exists.exists) return alert("이미 존재하는 공장명입니다.");
   if (!codeUsed.empty) return alert("이미 사용 중인 코드입니다.");
-
   await db.collection("factories").doc(name).set({ name, code, createdAt: new Date() });
   document.getElementById("newFactoryName").value = "";
   document.getElementById("newFactoryCode").value = "";
@@ -58,7 +56,7 @@ async function deleteFactory(id) {
   loadFactories();
 }
 
-// === 🧩 문제 등록 ===
+// 🧩 문제 등록
 async function saveQuestion() {
   const factory = document.getElementById("factorySelector").value;
   const text = document.getElementById("questionText").value.trim();
@@ -109,7 +107,7 @@ document.getElementById("questionImage").addEventListener("change", (e) => {
   }
 });
 
-// === 📦 문제 목록 ===
+// 📦 문제 목록
 async function loadQuestions() {
   const container = document.getElementById("questionList");
   container.innerHTML = "";
@@ -140,9 +138,12 @@ async function deleteQuestion(id) {
   loadQuestions();
 }
 
-// === 👥 팀 관리 ===
+// 👥 팀 관리 (정렬 기능 포함)
 async function loadTeams() {
-  const snap = await db.collection("teams").get();
+  const desc = document.getElementById("sortDesc")?.checked;
+  const query = db.collection("teams").orderBy("score", desc ? "desc" : "asc");
+  const snap = await query.get();
+
   const container = document.getElementById("teamList");
   container.innerHTML = '';
   snap.forEach(doc => {
@@ -170,7 +171,7 @@ async function deleteTeam(teamId) {
   loadTeams();
 }
 
-// === 📋 응답 기록 ===
+// 📋 응답 기록
 async function loadAnswerRecords() {
   const answerSnap = await db.collection("answers").get();
   const questionSnap = await db.collection("questions").get();
@@ -202,7 +203,7 @@ async function loadAnswerRecords() {
   });
 }
 
-// === 초기 실행 ===
+// 초기화
 document.addEventListener("DOMContentLoaded", () => {
   loadProgramStatus();
   loadFactories();
