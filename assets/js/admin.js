@@ -3,8 +3,8 @@ document.addEventListener("DOMContentLoaded", () => {
   loadFactories();
   loadTeams();
   loadQuestions();
+  loadAnswerRecords();
 });
-
 // 🔌 프로그램 제어
 async function toggleProgram() {
   const state = document.getElementById("programSwitch").checked;
