@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>내 순위 보기</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="assets/js/firebase-init.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 내 순위</h1>
+    <div id="rankResult">불러오는 중...</div>
+  </div>
+
+  <script>
+    async function showMyRank() {
+      const teamId = localStorage.getItem("currentTeam");
+      const snap = await db.collection("teams").get();
+      const teams = [];
+
+      snap.forEach(doc => {
+        const score = doc.data().score || 0;
+        teams.push({ id: doc.id, score });
+      });
+
+      teams.sort((a, b) => a.score - b.score);
+      const rank = teams.findIndex(t => t.id === teamId) + 1;
+
+      document.getElementById("rankResult").innerText =
+        `내 순위: ${rank}등\n(팀: ${teamId})`;
+    }
+
+    showMyRank();
+  </script>
+</body>
+</html>
