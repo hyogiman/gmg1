@@ -1,19 +1,18 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>홈</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8" />
+  <title>Home - 팀 대시보드</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
   <div class="container">
-    <h1>🏠 홈</h1>
-    <p>팀: <strong id="teamName"></strong></p>
-    <p>현재 점수: <span id="score"></span></p>
+    <h1>🏠 팀 홈</h1>
+    <p>팀 이름: <strong id="teamName"></strong></p>
 
-    <button onclick="openCodePrompt()">공장 코드 입력</button>
-    <button onclick="viewRanking()">순위 보기</button>
+    <button onclick="enterCode()">코드 입력</button>
+    <button onclick="viewRanking()">내 순위 보기</button>
     <button onclick="logout()">로그아웃</button>
   </div>
 
@@ -22,28 +21,38 @@
   <script src="assets/js/firebase-init.js"></script>
   <script>
     const teamId = localStorage.getItem("currentTeam");
-    if (!teamId) location.href = "index.html";
-    document.getElementById("teamName").innerText = teamId;
+    document.getElementById("teamName").innerText = teamId || "로그인 필요";
 
-    async function fetchScore() {
-      const doc = await db.collection("teams").doc(teamId).get();
-      document.getElementById("score").innerText = doc.exists ? (doc.data().score || 0) + "원" : "-";
+    function logout() {
+      localStorage.removeItem("currentTeam");
+      location.href = "index.html";
     }
 
-    async function openCodePrompt() {
-      const inputCode = prompt("공장 입장 코드 입력:");
-      if (!inputCode || inputCode.length !== 4) return alert("4자리 숫자 코드를 입력하세요.");
+    async function enterCode() {
+      const code = prompt("4자리 공장 코드를 입력하세요");
+      if (!code || code.length !== 4) {
+        alert("올바른 4자리 코드를 입력하세요.");
+        return;
+      }
 
-      const snap = await db.collection("factories").where("code", "==", inputCode).get();
-      if (snap.empty) return alert("유효하지 않은 코드입니다.");
+      const factories = await db.collection("factories").where("code", "==", code).get();
+      if (factories.empty) {
+        alert("해당 코드의 공장을 찾을 수 없습니다.");
+        return;
+      }
 
-      const factoryName = snap.docs[0].id;
-      localStorage.setItem("currentFactory", factoryName);
+      const factory = factories.docs[0].id;
+      localStorage.setItem("selectedFactory", factory);
       location.href = "trouble.html";
     }
 
     async function viewRanking() {
-      const snap = await db.collection("teams").orderBy("score", "asc").get();
+      if (!teamId) return alert("로그인이 필요합니다.");
+
+      const conf = await db.collection("config").doc("ranking").get();
+      const order = conf.exists ? conf.data().order : "asc";
+
+      const snap = await db.collection("teams").orderBy("score", order).get();
       let rank = 1;
       for (const doc of snap.docs) {
         if (doc.id === teamId) {
@@ -53,13 +62,6 @@
         rank++;
       }
     }
-
-    function logout() {
-      localStorage.clear();
-      location.href = "index.html";
-    }
-
-    fetchScore();
   </script>
 </body>
 </html>
