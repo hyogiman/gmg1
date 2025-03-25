@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>관리자 패널</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="assets/css/style.css" />
@@ -16,19 +16,45 @@
       border: none;
       border-radius: 5px;
     }
-    nav button:hover {
-      background: #495057;
-    }
+    nav button:hover { background: #495057; }
     table, th, td {
       border: 1px solid #ccc;
       border-collapse: collapse;
       padding: 6px;
     }
+    .switch { position: relative; display: inline-block; width: 60px; height: 30px; }
+    .switch input { display: none; }
+    .slider {
+      position: absolute; cursor: pointer;
+      background-color: #ccc; transition: .4s;
+      border-radius: 34px; height: 100%; width: 100%;
+    }
+    .slider:before {
+      position: absolute; content: "";
+      height: 24px; width: 24px; left: 4px; bottom: 3px;
+      background-color: white; transition: .4s; border-radius: 50%;
+    }
+    input:checked + .slider { background-color: #28a745; }
+    input:checked + .slider:before { transform: translateX(28px); }
   </style>
 </head>
 <body>
+  <script>
+    if (localStorage.getItem("adminAuth") !== "true") {
+      location.href = "admin-login.html";
+    }
+    function logoutAdmin() {
+      localStorage.removeItem("adminAuth");
+      location.href = "admin-login.html";
+    }
+  </script>
+
   <div class="container">
     <h1>🛠️ 관리자 패널</h1>
+
+    <div style="text-align:right; margin-bottom:10px;">
+      <button onclick="logoutAdmin()" style="background:#dc3545; color:#fff;">로그아웃</button>
+    </div>
 
     <!-- 탭 버튼 -->
     <nav>
@@ -42,8 +68,12 @@
 
     <!-- 🔌 프로그램 제어 -->
     <section id="section-program" class="section">
-      <h2>🔌 프로그램 상태</h2>
-      <label><input type="checkbox" id="programSwitch" onchange="toggleProgram()"> 프로그램 오픈</label>
+      <h2>🔌 프로그램 제어</h2>
+      <label class="switch">
+        <input type="checkbox" id="programSwitch" onchange="toggleProgram()">
+        <span class="slider"></span>
+      </label>
+      <span id="programStatusText">상태 확인 중...</span>
     </section>
 
     <!-- 🏭 공장 관리 -->
@@ -74,7 +104,7 @@
     <!-- 📦 문제 목록 -->
     <section id="section-questionList" class="section">
       <h2>📦 등록된 문제 목록</h2>
-      <div id="questionList"></div>
+      <div id="questionList">불러오는 중...</div>
     </section>
 
     <!-- 👥 팀 관리 -->
@@ -92,7 +122,6 @@
     </section>
   </div>
 
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
@@ -103,9 +132,8 @@
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       document.getElementById(`section-${name}`).classList.add('active');
     }
-
     document.addEventListener("DOMContentLoaded", () => {
-      showSection('program'); // 기본 탭
+      showSection('program');
     });
   </script>
 </body>
