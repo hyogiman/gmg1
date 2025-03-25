@@ -9,10 +9,18 @@ document.addEventListener("DOMContentLoaded", () => {
 async function toggleProgram() {
   const open = document.getElementById("programSwitch").checked;
   await db.collection("config").doc("global").set({ open }, { merge: true });
+  updateProgramStatusText(open);
 }
 async function loadProgramStatus() {
   const doc = await db.collection("config").doc("global").get();
-  document.getElementById("programSwitch").checked = doc.exists ? doc.data().open : false;
+  const open = doc.exists ? doc.data().open : false;
+  document.getElementById("programSwitch").checked = open;
+  updateProgramStatusText(open);
+}
+function updateProgramStatusText(open) {
+  const status = document.getElementById("programStatusText");
+  status.innerText = open ? "현재 상태: ✅ 오픈됨" : "현재 상태: ❌ 닫힘";
+  status.style.color = open ? "#28a745" : "#dc3545";
 }
 
 // 🏭 공장 관리
@@ -75,7 +83,6 @@ async function saveQuestion() {
     submitQuestion({ factory, text, timeLimit, options });
   }
 }
-
 async function submitQuestion(data) {
   await db.collection("questions").add(data);
   alert("✅ 문제 등록 완료");
