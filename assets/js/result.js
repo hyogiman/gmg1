@@ -1,51 +1,36 @@
 async function loadResults() {
-  const teamsSnap = await db.collection("teams").get();
-  const answersSnap = await db.collection("answers").get();
+  const snap = await db.collection("teams").get();
+  const teams = [];
 
-  const answersMap = {};
-  answersSnap.forEach(doc => {
-    answersMap[doc.id] = doc.data().records || [];
-  });
-
-  const rows = [];
-  teamsSnap.forEach(doc => {
-    const id = doc.id;
+  snap.forEach(doc => {
     const score = doc.data().score || 0;
-    const answers = answersMap[id] || [];
-    rows.push({ id, score, answers });
+    teams.push({ id: doc.id, score });
   });
 
-  rows.sort((a, b) => a.score - b.score);
+  teams.sort((a, b) => a.score - b.score); // 오름차순: 점수 낮은 팀 우승
 
-  let html = `
-    <table>
-      <thead>
-        <tr>
-          <th>순위</th>
-          <th>팀 ID</th>
-          <th>총 비용</th>
-          <th>풀이 기록</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
+  let html = `<table>
+    <thead><tr><th>순위</th><th>팀</th><th>총 비용</th></tr></thead>
+    <tbody>`;
 
-  rows.forEach((row, idx) => {
-    const recordHtml = row.answers.map(r =>
-      `[${r.factory}] ${r.option} (${r.cost}원)`
-    ).join("<br>");
-
-    html += `
-      <tr>
-        <td>${idx + 1}</td>
-        <td>${row.id}</td>
-        <td>${row.score}원</td>
-        <td>${recordHtml}</td>
-      </tr>
-    `;
+  teams.forEach((team, idx) => {
+    html += `<tr>
+      <td>${idx + 1}</td>
+      <td>${team.id}</td>
+      <td>${team.score}</td>
+    </tr>`;
   });
 
-  html += "</tbody></table>";
+  html += `</tbody></table>`;
 
-  document.getElementById("resultTableContainer").innerHTML = html;
+  const winner = teams[0]?.id;
+  html = `<h3>🏆 우승 팀: ${winner}</h3>` + html;
+
+  document.getElementById("leaderboard").innerHTML = html;
 }
+
+function goHome() {
+  location.href = "home.html";
+}
+
+loadResults();
