@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>최종 결과</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="assets/css/style.css" />
@@ -9,13 +9,35 @@
 <body>
   <div class="container">
     <h1>🏁 최종 결과</h1>
-    <div id="leaderboard">결과 불러오는 중...</div>
-    <button onclick="goHome()">홈으로</button>
+    <table>
+      <thead>
+        <tr><th>순위</th><th>팀</th><th>점수</th></tr>
+      </thead>
+      <tbody id="resultTable"></tbody>
+    </table>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
-  <script src="assets/js/result.js"></script>
+  <script>
+    async function loadResults() {
+      const snap = await db.collection("teams").orderBy("score", "asc").get();
+      const tbody = document.getElementById("resultTable");
+      let rank = 1;
+      snap.forEach(doc => {
+        const data = doc.data();
+        tbody.innerHTML += `
+          <tr>
+            <td>${rank++}</td>
+            <td>${doc.id}</td>
+            <td>${data.score || 0}원</td>
+          </tr>
+        `;
+      });
+    }
+
+    loadResults();
+  </script>
 </body>
 </html>
