@@ -134,11 +134,12 @@ async function recordAnswer(option, cost) {
 
   await answerRef.set({ records }, { merge: true });
 
+  // 점수 누적
   await db.collection("teams").doc(teamId).set({
     score: firebase.firestore.FieldValue.increment(cost)
   }, { merge: true });
 
-  // 세션 제거
+  // 세션 삭제
   await db.collection("session").doc(`${teamId}_${factoryId}`).delete();
 
   solvedIds.push(current.id);
