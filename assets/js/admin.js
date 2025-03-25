@@ -121,14 +121,19 @@ async function editQuestion(id) {
   document.getElementById("factorySelector").value = q.factory;
   document.getElementById("questionText").value = q.text;
   document.getElementById("timeLimit").value = q.timeLimit;
+
   document.getElementById("optA").value = q.options.A.text;
   document.getElementById("costA").value = q.options.A.cost;
   document.getElementById("optB").value = q.options.B.text;
   document.getElementById("costB").value = q.options.B.cost;
   document.getElementById("optC").value = q.options.C.text;
   document.getElementById("costC").value = q.options.C.cost;
-}
 
+  // 이미지 필드는 미리보기 초기화
+  document.getElementById("questionImage").value = "";
+  const preview = document.getElementById("previewImage");
+  preview.style.display = "none";
+}
 async function deleteQuestion(id) {
   if (!confirm("문제를 삭제할까요?")) return;
   await db.collection("questions").doc(id).delete();
