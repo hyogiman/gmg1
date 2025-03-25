@@ -7,20 +7,12 @@
   <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
-  <script>
-    if (!localStorage.getItem("currentTeam")) {
-      alert("로그인이 필요합니다.");
-      location.href = "index.html";
-    }
-  </script>
-
   <div class="container">
-    <h1 id="factoryName"></h1>
-    <div id="timerDisplay"></div>
-    <div id="questionContainer"></div>
+    <h1>문제 풀이</h1>
+    <div id="countdown" style="font-size: 1.2em; margin-bottom: 10px;"></div>
+    <div id="questionArea">문제를 불러오는 중...</div>
   </div>
 
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
