@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>팀 홈</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>🏠 홈</h1>
+    <div id="teamInfo"></div>
+    <button onclick="openCodeInput()">코드 입력</button>
+    <button onclick="logout()">로그아웃</button>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="assets/js/firebase-init.js"></script>
+  <script src="assets/js/home.js"></script>
+</body>
+</html>
