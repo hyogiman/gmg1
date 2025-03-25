@@ -7,12 +7,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // 🔌 프로그램 ON/OFF
 async function toggleProgram() {
-  const isOpen = document.getElementById("programSwitch").checked;
-  await db.collection("config").doc("global").set({ open: isOpen });
+  const open = document.getElementById("programSwitch").checked;
+  await db.collection("config").doc("global").set({ open }, { merge: true });
 }
 async function loadProgramStatus() {
   const doc = await db.collection("config").doc("global").get();
-  document.getElementById("programSwitch").checked = doc.exists ? doc.data().open : false;
+  if (doc.exists) {
+    document.getElementById("programSwitch").checked = doc.data().open;
+  }
 }
 
 // 🏭 공장 관리
@@ -20,11 +22,10 @@ async function addFactory() {
   const name = document.getElementById("newFactory").value.trim();
   if (!name) return alert("공장명을 입력하세요.");
   await db.collection("factories").doc(name).set({ createdAt: new Date() });
-  alert("공장 등록 완료");
   loadFactories();
 }
 async function deleteFactory(name) {
-  if (!confirm(`${name} 공장을 삭제할까요?`)) return;
+  if (!confirm(`${name} 공장을 삭제하시겠습니까?`)) return;
   await db.collection("factories").doc(name).delete();
   loadFactories();
 }
@@ -32,11 +33,15 @@ async function loadFactories() {
   const snap = await db.collection("factories").get();
   const selector = document.getElementById("factorySelector");
   const list = document.getElementById("factoryList");
-  selector.innerHTML = '';
-  list.innerHTML = '';
+  if (selector) selector.innerHTML = '';
+  if (list) list.innerHTML = '';
   snap.forEach(doc => {
-    selector.innerHTML += `<option value="${doc.id}">${doc.id}</option>`;
-    list.innerHTML += `<li>${doc.id} <button onclick="deleteFactory('${doc.id}')">삭제</button></li>`;
+    if (selector) {
+      selector.innerHTML += `<option value="${doc.id}">${doc.id}</option>`;
+    }
+    if (list) {
+      list.innerHTML += `<li>${doc.id} <button onclick="deleteFactory('${doc.id}')">삭제</button></li>`;
+    }
   });
 }
 
@@ -53,13 +58,11 @@ function previewImage() {
   reader.readAsDataURL(file);
 }
 
-// 🧩 문제 등록/수정
+// 🧩 문제 등록
 async function saveQuestion() {
   const factory = document.getElementById("factorySelector").value;
   const text = document.getElementById("questionText").value;
   const timeLimit = parseInt(document.getElementById("timeLimit").value) || 60;
-  const id = document.getElementById("editQuestionId").value;
-
   const options = {
     A: { text: document.getElementById("optA").value, cost: parseInt(document.getElementById("costA").value) || 0 },
     B: { text: document.getElementById("optB").value, cost: parseInt(document.getElementById("costB").value) || 0 },
@@ -71,85 +74,89 @@ async function saveQuestion() {
     const reader = new FileReader();
     reader.onload = () => {
       const image = reader.result;
-      submitQuestion(id, { factory, text, timeLimit, options, image });
+      submitQuestion({ factory, text, timeLimit, options, image });
     };
     reader.readAsDataURL(file);
   } else {
-    submitQuestion(id, { factory, text, timeLimit, options });
+    submitQuestion({ factory, text, timeLimit, options });
   }
 }
 
-async function submitQuestion(id, data) {
-  if (!data.factory) return alert("공장을 선택하세요.");
-  if (id) {
-    await db.collection("questions").doc(id).set(data, { merge: true });
-  } else {
-    await db.collection("questions").add(data);
-  }
-  alert("문제 저장 완료");
-  clearForm();
+async function submitQuestion(data) {
+  await db.collection("questions").add(data);
+  alert("✅ 문제 등록 완료");
   loadQuestions();
 }
 
-function clearForm() {
-  document.getElementById("editQuestionId").value = "";
-  document.getElementById("questionText").value = "";
-  document.getElementById("timeLimit").value = "";
-  ["A", "B", "C"].forEach(opt => {
-    document.getElementById("opt" + opt).value = "";
-    document.getElementById("cost" + opt).value = "";
-  });
-  document.getElementById("questionImage").value = "";
-  document.getElementById("previewImage").style.display = "none";
-}
-
-// 문제 수정 버튼 → 필드 반영
-async function editQuestion(id) {
-  const doc = await db.collection("questions").doc(id).get();
-  if (!doc.exists) return alert("문제를 찾을 수 없습니다.");
-  const q = doc.data();
-
-  document.getElementById("editQuestionId").value = id;
-  document.getElementById("factorySelector").value = q.factory || "";
-  document.getElementById("questionText").value = q.text || "";
-  document.getElementById("timeLimit").value = q.timeLimit || 60;
-
-  ["A", "B", "C"].forEach(opt => {
-    document.getElementById("opt" + opt).value = q.options?.[opt]?.text || "";
-    document.getElementById("cost" + opt).value = q.options?.[opt]?.cost || 0;
-  });
-
-  if (q.image) {
-    const preview = document.getElementById("previewImage");
-    preview.src = q.image;
-    preview.style.display = "block";
-  }
-}
-
-async function deleteQuestion(id) {
-  if (!confirm("문제를 삭제할까요?")) return;
-  await db.collection("questions").doc(id).delete();
-  loadQuestions();
-}
-
-// 📋 문제 전체 목록 출력
+// 📦 문제 목록
 async function loadQuestions() {
   const snap = await db.collection("questions").orderBy("factory").get();
   const container = document.getElementById("questionList");
+  if (!container) return;
   container.innerHTML = '';
   snap.forEach(doc => {
     const q = doc.data();
     container.innerHTML += `
-      <div style="border:1px solid #ccc; padding:10px; margin:10px;">
+      <div style="border:1px solid #ccc; padding:10px; margin:10px 0;">
         <strong>[${q.factory}]</strong> ${q.text}<br/>
-        A: ${q.options?.A?.text} (${q.options?.A?.cost})<br/>
-        B: ${q.options?.B?.text} (${q.options?.B?.cost})<br/>
-        C: ${q.options?.C?.text} (${q.options?.C?.cost})<br/>
-        제한시간: ${q.timeLimit || 60}초<br/>
-        ${q.image ? `<img src="${q.image}" style="max-width:200px;"><br/>` : ""}
-        <button onclick="editQuestion('${doc.id}')">수정</button>
-        <button onclick="deleteQuestion('${doc.id}')">삭제</button>
+        <button onclick="location.href='edit.html?id=${doc.id}'">✏️ 수정</button>
       </div>
     `;
   });
+}
+
+// 👥 팀 관리
+async function loadTeams() {
+  const snap = await db.collection("teams").get();
+  const container = document.getElementById("teamList");
+  if (!container) return;
+  container.innerHTML = '';
+  snap.forEach(doc => {
+    const data = doc.data();
+    container.innerHTML += `
+      <div style="border:1px solid #aaa; padding:8px; margin:8px;">
+        <strong>${doc.id}</strong><br/>
+        점수: ${data.score || 0}원<br/>
+        <button onclick="resetTeam('${doc.id}')">초기화</button>
+        <button onclick="deleteTeam('${doc.id}')">삭제</button>
+      </div>
+    `;
+  });
+}
+async function resetTeam(teamId) {
+  if (!confirm(`${teamId} 팀을 초기화할까요?`)) return;
+  await db.collection("teams").doc(teamId).set({ score: 0 }, { merge: true });
+  await db.collection("answers").doc(teamId).delete();
+  loadTeams();
+}
+async function deleteTeam(teamId) {
+  if (!confirm(`${teamId} 팀을 삭제할까요?`)) return;
+  await db.collection("teams").doc(teamId).delete();
+  await db.collection("answers").doc(teamId).delete();
+  loadTeams();
+}
+
+// 📋 응답 기록
+async function loadAnswerRecords() {
+  const snap = await db.collection("answers").get();
+  const container = document.getElementById("answerTable");
+  if (!container) return;
+
+  let html = '<table><thead><tr><th>팀</th><th>공장</th><th>문제ID</th><th>선택</th><th>비용</th></tr></thead><tbody>';
+  snap.forEach(doc => {
+    const records = doc.data().records || [];
+    records.forEach(r => {
+      html += `
+        <tr>
+          <td>${doc.id}</td>
+          <td>${r.factory}</td>
+          <td>${r.questionId}</td>
+          <td>${r.option}</td>
+          <td>${r.cost}</td>
+        </tr>
+      `;
+    });
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
 }
