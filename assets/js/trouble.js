@@ -16,7 +16,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   await loadSolvedQuestions();
   await loadAllQuestions();
-  showNextQuestion();
+  await checkSessionOrStartNew();
 });
 
 async function loadSolvedQuestions() {
@@ -33,21 +33,48 @@ async function loadAllQuestions() {
   allQuestions = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
-function showNextQuestion() {
-  const unsolved = allQuestions.filter(q => !solvedIds.includes(q.id));
+async function checkSessionOrStartNew() {
+  const sessionRef = db.collection("session").doc(`${teamId}_${factoryId}`);
+  const snap = await sessionRef.get();
 
+  const unsolved = allQuestions.filter(q => !solvedIds.includes(q.id));
   if (unsolved.length === 0) {
     document.getElementById("questionBox").style.display = "none";
     document.getElementById("completeBox").style.display = "block";
     return;
   }
 
-  current = unsolved[Math.floor(Math.random() * unsolved.length)];
-  document.getElementById("questionText").innerText = current.text;
+  if (snap.exists && snap.data().current) {
+    const currentId = snap.data().current.id;
+    const startedAt = snap.data().current.startedAt;
+
+    current = allQuestions.find(q => q.id === currentId);
+    if (!current) {
+      await sessionRef.delete();
+      return checkSessionOrStartNew();
+    }
+
+    const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+    remainingTime = Math.max((current.timeLimit || 60) - elapsed, 0);
+
+    if (remainingTime <= 0) {
+      await recordAnswer("timeout", 99999);
+    } else {
+      showQuestion(current, remainingTime);
+    }
+  } else {
+    current = unsolved[Math.floor(Math.random() * unsolved.length)];
+    await sessionRef.set({ current: { id: current.id, startedAt: Date.now() } });
+    showQuestion(current, current.timeLimit || 60);
+  }
+}
+
+function showQuestion(q, startTime) {
+  document.getElementById("questionText").innerText = q.text;
 
   const image = document.getElementById("questionImage");
-  if (current.image) {
-    image.src = current.image;
+  if (q.image) {
+    image.src = q.image;
     image.style.display = "block";
   } else {
     image.style.display = "none";
@@ -56,7 +83,7 @@ function showNextQuestion() {
   const optionsBox = document.getElementById("options");
   optionsBox.innerHTML = "";
   ["A", "B", "C"].forEach(key => {
-    const opt = current.options[key];
+    const opt = q.options[key];
     const btn = document.createElement("button");
     btn.innerText = opt.text;
     btn.onclick = () => submitAnswer(key, opt.cost);
@@ -65,7 +92,7 @@ function showNextQuestion() {
     optionsBox.appendChild(btn);
   });
 
-  startTimer(current.timeLimit || 60);
+  startTimer(startTime);
 }
 
 function startTimer(seconds) {
@@ -107,13 +134,15 @@ async function recordAnswer(option, cost) {
 
   await answerRef.set({ records }, { merge: true });
 
-  const teamRef = db.collection("teams").doc(teamId);
-  await teamRef.set({
+  await db.collection("teams").doc(teamId).set({
     score: firebase.firestore.FieldValue.increment(cost)
   }, { merge: true });
 
+  // 세션 제거
+  await db.collection("session").doc(`${teamId}_${factoryId}`).delete();
+
   solvedIds.push(current.id);
-  showNextQuestion();
+  await checkSessionOrStartNew();
 }
 
 function goHome() {
