@@ -8,28 +8,17 @@
 </head>
 <body>
   <div class="container">
-    <h1>👥 신규 팀 등록</h1>
-    <input type="text" id="registerId" placeholder="팀 ID" />
-    <input type="password" id="registerPw" placeholder="비밀번호" />
+    <h1>신규 팀 등록</h1>
+    <input type="text" id="newTeamId" placeholder="팀 ID" />
+    <input type="password" id="newTeamPw" placeholder="비밀번호" />
     <button onclick="registerTeam()">등록</button>
-    <button onclick="location.href='index.html'">← 돌아가기</button>
+    <p><a href="index.html">← 로그인으로 돌아가기</a></p>
   </div>
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
-  <script>
-    async function checkProgramOpen() {
-      const doc = await db.collection("config").doc("global").get();
-      const isOpen = doc.exists ? doc.data().open : false;
-      if (!isOpen) {
-        alert("⛔ 프로그램이 아직 시작되지 않았습니다.");
-        location.href = "index.html";
-      }
-    }
-    document.addEventListener("DOMContentLoaded", checkProgramOpen);
-  </script>
-  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/register.js"></script>
 </body>
 </html>
