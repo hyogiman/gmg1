@@ -30,6 +30,14 @@
       document.getElementById("score").innerText = doc.exists ? (doc.data().score || 0) + "원" : "-";
     }
 
+    async function checkProgramStatus() {
+      const config = await db.collection("config").doc("global").get();
+      if (config.exists && config.data().open === false) {
+        alert("아직 프로그램 시작 시간이 아닙니다.");
+        location.href = "index.html";
+      }
+    }
+
     function logout() {
       localStorage.clear();
       location.href = "index.html";
@@ -62,6 +70,7 @@
       }
     }
 
+    checkProgramStatus();
     fetchScore();
   </script>
 </body>
