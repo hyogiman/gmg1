@@ -58,7 +58,7 @@ function showNextQuestion() {
   ["A", "B", "C"].forEach(key => {
     const opt = current.options[key];
     const btn = document.createElement("button");
-    btn.innerText = opt.text; // 점수는 숨김
+    btn.innerText = opt.text;
     btn.onclick = () => submitAnswer(key, opt.cost);
     btn.style.display = "block";
     btn.style.margin = "5px 0";
@@ -77,7 +77,7 @@ function startTimer(seconds) {
     document.getElementById("timer").innerText = remainingTime;
     if (remainingTime <= 0) {
       clearInterval(timer);
-      recordAnswer("timeout", 99999); // 타임아웃 처리
+      recordAnswer("timeout", 99999);
     }
   }, 1000);
 }
@@ -107,7 +107,6 @@ async function recordAnswer(option, cost) {
 
   await answerRef.set({ records }, { merge: true });
 
-  // 점수 저장
   const teamRef = db.collection("teams").doc(teamId);
   await teamRef.set({
     score: firebase.firestore.FieldValue.increment(cost)
