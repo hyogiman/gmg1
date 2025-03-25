@@ -142,6 +142,23 @@ async function loadQuestions() {
   });
 }
 
+container.innerHTML += `
+  <div style="border:1px solid #ccc; padding:10px; margin:10px;">
+    <b>[${q.factory}]</b> ${q.text}<br/>
+    제한시간: ${q.timeLimit}s<br/>
+    <ul>
+      <li>A: ${q.options.A.text} (${q.options.A.cost}원)</li>
+      <li>B: ${q.options.B.text} (${q.options.B.cost}원)</li>
+      <li>C: ${q.options.C.text} (${q.options.C.cost}원)</li>
+    </ul>
+    <button onclick="editQuestion('${doc.id}')">수정</button>
+    <button onclick="deleteQuestion('${doc.id}')">삭제</button>
+  </div>
+`;
+
+function editQuestion(id) {
+  location.href = `edit.html?id=${id}`;
+}
 async function deleteQuestion(id) {
   if (!confirm("문제를 삭제할까요?")) return;
   await db.collection("questions").doc(id).delete();
