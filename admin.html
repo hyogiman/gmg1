@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>관리자 패널</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="assets/css/style.css" />
   <style>
     .section { display: none; }
@@ -17,7 +17,15 @@
       border-radius: 5px;
     }
     nav button:hover { background: #495057; }
-    .switch { position: relative; display: inline-block; width: 60px; height: 30px; }
+    table, th, td {
+      border: 1px solid #ccc;
+      border-collapse: collapse;
+      padding: 6px;
+    }
+    .switch {
+      position: relative; display: inline-block;
+      width: 60px; height: 30px;
+    }
     .switch input { display: none; }
     .slider {
       position: absolute; cursor: pointer;
@@ -73,7 +81,7 @@
     <!-- 🏭 공장 관리 -->
     <section id="section-factory" class="section">
       <h2>🏭 공장 관리</h2>
-      <input type="text" id="newFactoryName" placeholder="공장명" />
+      <input type="text" id="newFactoryName" placeholder="공장명 입력" />
       <input type="text" id="newFactoryCode" placeholder="4자리 코드" maxlength="4" />
       <button onclick="addFactory()">공장 추가</button>
       <ul id="factoryList"></ul>
@@ -106,9 +114,16 @@
     <section id="section-teams" class="section">
       <h2>👥 팀 관리</h2>
       <button onclick="loadTeams()">불러오기</button>
-      <label>
-        <input type="checkbox" id="sortDesc" onchange="loadTeams()"> 높은 점수 우선 정렬
-      </label>
+      <div style="margin-top: 10px;">
+        <label style="display: flex; align-items: center;">
+          <span style="margin-right:10px;">정렬 기준</span>
+          <label class="switch">
+            <input type="checkbox" id="sortDesc" onchange="loadTeams()">
+            <span class="slider"></span>
+          </label>
+          <span id="sortText" style="margin-left: 10px;">낮은 점수 우선</span>
+        </label>
+      </div>
       <div id="teamList"></div>
     </section>
 
