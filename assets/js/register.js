@@ -1,16 +1,26 @@
-function registerTeam() {
-  const teamId = document.getElementById("newTeamId").value;
-  const password = document.getElementById("newPassword").value;
+async function registerTeam() {
+  const teamId = document.getElementById("newTeamId").value.trim();
+  const password = document.getElementById("newTeamPw").value.trim();
 
-  let teams = JSON.parse(localStorage.getItem("teams")) || {};
+  if (!teamId || !password) {
+    alert("모든 항목을 입력하세요.");
+    return;
+  }
 
-  if (teams[teamId]) {
+  const ref = db.collection("teams").doc(teamId);
+  const snap = await ref.get();
+
+  if (snap.exists) {
     alert("이미 존재하는 팀 ID입니다.");
     return;
   }
 
-  teams[teamId] = password;
-  localStorage.setItem("teams", JSON.stringify(teams));
-  alert("등록 완료! 로그인 페이지로 이동합니다.");
-  window.location.href = "login.html";
+  await ref.set({
+    password: password,
+    score: 0,
+    createdAt: new Date()
+  });
+
+  alert("✅ 팀 등록 완료");
+  location.href = "index.html";
 }
