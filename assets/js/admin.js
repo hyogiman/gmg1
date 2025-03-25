@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
   loadProgramStatus();
   loadFactories();
   loadQuestions();
-  document.getElementById("questionImage").addEventListener("change", previewImage);
+  document.getElementById("questionImage")?.addEventListener("change", previewImage);
 });
 
 // 🔌 프로그램 ON/OFF
@@ -12,9 +12,7 @@ async function toggleProgram() {
 }
 async function loadProgramStatus() {
   const doc = await db.collection("config").doc("global").get();
-  if (doc.exists) {
-    document.getElementById("programSwitch").checked = doc.data().open;
-  }
+  document.getElementById("programSwitch").checked = doc.exists ? doc.data().open : false;
 }
 
 // 🏭 공장 관리
@@ -25,7 +23,7 @@ async function addFactory() {
   loadFactories();
 }
 async function deleteFactory(name) {
-  if (!confirm(`${name} 공장을 삭제하시겠습니까?`)) return;
+  if (!confirm(`${name} 공장을 삭제할까요?`)) return;
   await db.collection("factories").doc(name).delete();
   loadFactories();
 }
@@ -36,12 +34,8 @@ async function loadFactories() {
   if (selector) selector.innerHTML = '';
   if (list) list.innerHTML = '';
   snap.forEach(doc => {
-    if (selector) {
-      selector.innerHTML += `<option value="${doc.id}">${doc.id}</option>`;
-    }
-    if (list) {
-      list.innerHTML += `<li>${doc.id} <button onclick="deleteFactory('${doc.id}')">삭제</button></li>`;
-    }
+    if (selector) selector.innerHTML += `<option value="${doc.id}">${doc.id}</option>`;
+    if (list) list.innerHTML += `<li>${doc.id} <button onclick="deleteFactory('${doc.id}')">삭제</button></li>`;
   });
 }
 
@@ -142,21 +136,27 @@ async function loadAnswerRecords() {
   const container = document.getElementById("answerTable");
   if (!container) return;
 
-  let html = '<table><thead><tr><th>팀</th><th>공장</th><th>문제ID</th><th>선택</th><th>비용</th></tr></thead><tbody>';
-  snap.forEach(doc => {
+  let html = '<table><thead><tr><th>팀</th><th>공장</th><th>문제</th><th>선택</th><th>비용</th></tr></thead><tbody>';
+  for (const doc of snap.docs) {
     const records = doc.data().records || [];
-    records.forEach(r => {
-      html += `
-        <tr>
-          <td>${doc.id}</td>
-          <td>${r.factory}</td>
-          <td>${r.questionId}</td>
-          <td>${r.option}</td>
-          <td>${r.cost}</td>
-        </tr>
-      `;
-    });
-  });
+    for (const r of records) {
+      let questionText = r.questionId;
+      try {
+        const qDoc = await db.collection("questions").doc(r.questionId).get();
+        if (qDoc.exists) {
+          questionText = qDoc.data().text.slice(0, 50) + '...';
+        }
+      } catch (e) {}
+      html += `<tr>
+        <td>${doc.id}</td>
+        <td>${r.factory}</td>
+        <td>${questionText}</td>
+        <td>${r.option}</td>
+        <td>${r.cost}</td>
+      </tr>`;
+    }
+  }
+
   html += '</tbody></table>';
   container.innerHTML = html;
 }
