@@ -1,96 +1,92 @@
-document.addEventListener("DOMContentLoaded", async () => {
-  const teamId = localStorage.getItem("currentTeam");
-  const factory = localStorage.getItem("currentFactory");
-  document.getElementById("factoryName").innerText = `${factory} 공장 문제`;
+const teamId = localStorage.getItem("currentTeam");
+const factory = localStorage.getItem("currentFactory");
 
-  const answerRef = db.collection("answers").doc(teamId);
-  const answerDoc = await answerRef.get();
-  const solved = answerDoc.exists ? answerDoc.data().solved || [] : [];
-
-  // 현재 진행 중 문제 확인
-  const active = answerDoc.exists ? answerDoc.data().active : null;
-
-  let q = null;
-
-  if (active && !solved.includes(active.questionId)) {
-    const qDoc = await db.collection("questions").doc(active.questionId).get();
-    q = { id: qDoc.id, ...qDoc.data(), startAt: active.startAt.toMillis() };
-  } else {
-    // 새 문제 랜덤 추출
-    const qSnap = await db.collection("questions").where("factory", "==", factory).get();
-    const available = qSnap.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter(q => !solved.includes(q.id));
-
-    if (available.length === 0) {
-      alert("남은 문제가 없습니다.");
-      return location.href = "main.html";
-    }
-
-    q = available[Math.floor(Math.random() * available.length)];
-    q.startAt = Date.now();
-
-    // Firestore에 시작시간 기록
-    await answerRef.set({
-      active: {
-        questionId: q.id,
-        factory,
-        startAt: new Date()
-      }
-    }, { merge: true });
-  }
-
-  renderQuestion(teamId, q);
-});
-
-function renderQuestion(teamId, q) {
-  const container = document.getElementById("questionContainer");
-  container.innerHTML = `<p>${q.text}</p>`;
-  if (q.image) {
-    container.innerHTML += `<img src="${q.image}" style="max-width:100%; margin:10px 0;" />`;
-  }
-
-  for (let opt of ["A", "B", "C"]) {
-    const btn = document.createElement("button");
-    btn.innerText = `옵션 ${opt}: ${q.options[opt].text}`; // ✅ 비용 제거
-    btn.onclick = () => submitAnswer(teamId, q, opt, q.options[opt].cost);
-    container.appendChild(btn);
-  }
-
-  const timeLimit = q.timeLimit || 60;
-  const remain = Math.max(0, timeLimit - Math.floor((Date.now() - q.startAt) / 1000));
-  startCountdown(remain, () => {
-    alert("⏰ 시간 초과! 문제 실패로 처리됩니다.");
-    submitAnswer(teamId, q, "시간초과", 0, true);
-  });
+if (!teamId || !factory) {
+  alert("접근 오류: 팀 또는 공장 정보가 없습니다.");
+  location.href = "home.html";
 }
-function startCountdown(seconds, onTimeout) {
-  const timerEl = document.getElementById("timerDisplay");
-  let remain = seconds;
 
-  const timer = setInterval(() => {
-    timerEl.innerText = `남은 시간: ${remain--}초`;
-    if (remain < 0) {
-      clearInterval(timer);
-      onTimeout();
+let currentQuestion = null;
+
+async function loadQuestion() {
+  const answerDoc = await db.collection("answers").doc(teamId).get();
+  const answeredIds = (answerDoc.exists ? answerDoc.data().records : []).map(r => r.questionId);
+
+  const snap = await db.collection("questions")
+    .where("factory", "==", factory)
+    .get();
+
+  const all = [];
+  snap.forEach(doc => {
+    if (!answeredIds.includes(doc.id)) {
+      all.push({ id: doc.id, ...doc.data() });
+    }
+  });
+
+  if (all.length === 0) {
+    document.getElementById("questionArea").innerHTML = "<p>모든 문제를 해결했습니다.</p>";
+    return;
+  }
+
+  currentQuestion = all[Math.floor(Math.random() * all.length)];
+  renderQuestion(currentQuestion);
+}
+
+function renderQuestion(q) {
+  const area = document.getElementById("questionArea");
+  let html = `<p>${q.text}</p>`;
+  if (q.image) html += `<img src="${q.image}" style="max-width:100%; margin:10px 0;" />`;
+
+  ["A", "B", "C"].forEach(opt => {
+    html += `<button onclick="submitAnswer('${opt}', ${q.options[opt].cost})">
+      옵션 ${opt}: ${q.options[opt].text}
+    </button><br/>`;
+  });
+
+  area.innerHTML = html;
+
+  startTimer(q.timeLimit || 60);
+}
+
+function startTimer(seconds) {
+  const countdown = document.getElementById("countdown");
+  let remaining = seconds;
+  countdown.innerText = `⏳ ${remaining}초 남음`;
+
+  const interval = setInterval(() => {
+    remaining--;
+    countdown.innerText = `⏳ ${remaining}초 남음`;
+    if (remaining <= 0) {
+      clearInterval(interval);
+      submitAnswer("시간초과", 0, true);
     }
   }, 1000);
 }
 
-async function submitAnswer(teamId, q, option, cost = 0, isFail = false) {
-  const answerRef = db.collection("answers").doc(teamId);
-  const doc = await answerRef.get();
-  const records = doc.exists ? doc.data().records || [] : [];
-  const solved = doc.exists ? doc.data().solved || [] : [];
+async function submitAnswer(option, cost, timeout = false) {
+  if (!currentQuestion) return;
+  const ref = db.collection("answers").doc(teamId);
+  const prev = await ref.get();
+  const records = prev.exists ? prev.data().records || [] : [];
 
-  records.push({ questionId: q.id, factory: q.factory, option, cost });
-  solved.push(q.id);
+  records.push({
+    factory,
+    questionId: currentQuestion.id,
+    option,
+    cost,
+    time: Date.now()
+  });
 
-  await answerRef.set({ records, solved, active: null }, { merge: true });
+  await ref.set({ records }, { merge: true });
 
-  const total = records.reduce((sum, r) => sum + r.cost, 0);
-  await db.collection("teams").doc(teamId).set({ score: total }, { merge: true });
+  if (!timeout) {
+    await db.collection("teams").doc(teamId).set({
+      score: firebase.firestore.FieldValue.increment(cost)
+    }, { merge: true });
+  }
 
-  alert(isFail ? "문제 실패 처리됨." : `제출 완료! 누적 비용: ${total}원`);
-  location.href = "main.html";
+  alert(timeout ? "시간 초과!" : "제출 완료!");
+  location.reload();
 }
+
+loadQuestion();
