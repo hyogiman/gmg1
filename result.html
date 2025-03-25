@@ -1,43 +1,58 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>최종 결과</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8" />
+  <title>게임 결과</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
   <div class="container">
     <h1>🏁 최종 결과</h1>
-    <table>
+    <table border="1" cellpadding="6" cellspacing="0" width="100%">
       <thead>
-        <tr><th>순위</th><th>팀</th><th>점수</th></tr>
+        <tr>
+          <th>순위</th>
+          <th>팀명</th>
+        </tr>
       </thead>
-      <tbody id="resultTable"></tbody>
+      <tbody id="rankingTable">
+        <tr><td colspan="2">불러오는 중...</td></tr>
+      </tbody>
     </table>
+
+    <button onclick="goHome()">홈으로</button>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
   <script>
-    async function loadResults() {
-      const snap = await db.collection("teams").orderBy("score", "asc").get();
-      const tbody = document.getElementById("resultTable");
+    async function loadRankingBoard() {
+      const conf = await db.collection("config").doc("ranking").get();
+      const order = conf.exists ? conf.data().order : "asc";
+
+      const snap = await db.collection("teams").orderBy("score", order).get();
+      const container = document.getElementById("rankingTable");
+      container.innerHTML = "";
+
       let rank = 1;
       snap.forEach(doc => {
-        const data = doc.data();
-        tbody.innerHTML += `
+        const team = doc.id;
+        container.innerHTML += `
           <tr>
             <td>${rank++}</td>
-            <td>${doc.id}</td>
-            <td>${data.score || 0}원</td>
+            <td>${team}</td>
           </tr>
         `;
       });
     }
 
-    loadResults();
+    function goHome() {
+      location.href = "home.html";
+    }
+
+    loadRankingBoard();
   </script>
 </body>
 </html>
