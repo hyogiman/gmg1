@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>문제 수정</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>✏️ 문제 수정</h1>
+    <select id="factorySelector"></select><br/>
+    <textarea id="questionText" placeholder="문제 내용"></textarea><br/>
+    <input type="file" id="questionImage" accept="image/*"><br/>
+    <img id="previewImage" style="max-width: 200px; display: none;" /><br/>
+    <input type="number" id="timeLimit" placeholder="제한시간(초)" /><br/>
+    <input type="text" id="optA" placeholder="옵션 A" />
+    <input type="number" id="costA" placeholder="비용 A" /><br/>
+    <input type="text" id="optB" placeholder="옵션 B" />
+    <input type="number" id="costB" placeholder="비용 B" /><br/>
+    <input type="text" id="optC" placeholder="옵션 C" />
+    <input type="number" id="costC" placeholder="비용 C" /><br/>
+    <button onclick="updateQuestion()">저장</button>
+    <button onclick="history.back()">돌아가기</button>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="assets/js/firebase-init.js"></script>
+  <script src="assets/js/edit.js"></script>
+</body>
+</html>
