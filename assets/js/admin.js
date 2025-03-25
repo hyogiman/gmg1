@@ -16,10 +16,12 @@ async function addFactory() {
   const name = document.getElementById("newFactoryName").value.trim();
   const code = document.getElementById("newFactoryCode").value.trim();
   if (!name || !code || code.length !== 4 || isNaN(code)) return alert("공장명과 4자리 숫자 코드를 입력하세요.");
+
   const exists = await db.collection("factories").doc(name).get();
   const codeUsed = await db.collection("factories").where("code", "==", code).get();
   if (exists.exists) return alert("이미 존재하는 공장명입니다.");
   if (!codeUsed.empty) return alert("이미 사용 중인 코드입니다.");
+
   await db.collection("factories").doc(name).set({ name, code, createdAt: new Date() });
   document.getElementById("newFactoryName").value = "";
   document.getElementById("newFactoryCode").value = "";
@@ -200,7 +202,7 @@ async function loadAnswerRecords() {
   });
 }
 
-// === 초기화 ===
+// === 초기 실행 ===
 document.addEventListener("DOMContentLoaded", () => {
   loadProgramStatus();
   loadFactories();
