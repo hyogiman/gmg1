@@ -3,30 +3,123 @@
 <head>
   <meta charset="UTF-8" />
   <title>문제 수정</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
   <div class="container">
-    <h1>✏️ 문제 수정</h1>
+    <h1>📝 문제 수정</h1>
+    <p><strong>ID:</strong> <span id="questionId"></span></p>
+
     <select id="factorySelector"></select><br/>
     <textarea id="questionText" placeholder="문제 내용"></textarea><br/>
+
     <input type="file" id="questionImage" accept="image/*"><br/>
     <img id="previewImage" style="max-width: 200px; display: none;" /><br/>
+
     <input type="number" id="timeLimit" placeholder="제한시간(초)" /><br/>
+
     <input type="text" id="optA" placeholder="옵션 A" />
     <input type="number" id="costA" placeholder="비용 A" /><br/>
+
     <input type="text" id="optB" placeholder="옵션 B" />
     <input type="number" id="costB" placeholder="비용 B" /><br/>
+
     <input type="text" id="optC" placeholder="옵션 C" />
     <input type="number" id="costC" placeholder="비용 C" /><br/>
+
     <button onclick="updateQuestion()">저장</button>
-    <button onclick="history.back()">돌아가기</button>
+    <button onclick="history.back()">취소</button>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
-  <script src="assets/js/edit.js"></script>
+
+  <script>
+    const qid = new URLSearchParams(location.search).get("id");
+    document.getElementById("questionId").innerText = qid;
+
+    async function loadFactories() {
+      const snap = await db.collection("factories").get();
+      const selector = document.getElementById("factorySelector");
+      selector.innerHTML = '';
+      snap.forEach(doc => {
+        selector.innerHTML += `<option value="${doc.id}">${doc.id}</option>`;
+      });
+    }
+
+    async function loadQuestion() {
+      const doc = await db.collection("questions").doc(qid).get();
+      if (!doc.exists) return alert("존재하지 않는 문제입니다.");
+      const q = doc.data();
+
+      document.getElementById("factorySelector").value = q.factory;
+      document.getElementById("questionText").value = q.text;
+      document.getElementById("timeLimit").value = q.timeLimit || 60;
+
+      if (q.image) {
+        document.getElementById("previewImage").src = q.image;
+        document.getElementById("previewImage").style.display = "block";
+      }
+
+      document.getElementById("optA").value = q.options.A.text;
+      document.getElementById("costA").value = q.options.A.cost;
+
+      document.getElementById("optB").value = q.options.B.text;
+      document.getElementById("costB").value = q.options.B.cost;
+
+      document.getElementById("optC").value = q.options.C.text;
+      document.getElementById("costC").value = q.options.C.cost;
+    }
+
+    async function updateQuestion() {
+      const factory = document.getElementById("factorySelector").value;
+      const text = document.getElementById("questionText").value.trim();
+      const timeLimit = parseInt(document.getElementById("timeLimit").value || "60");
+
+      const imageInput = document.getElementById("questionImage");
+      let imageData = document.getElementById("previewImage").src || null;
+      if (imageInput.files.length > 0) {
+        const file = imageInput.files[0];
+        imageData = await toBase64(file);
+      }
+
+      const options = {
+        A: { text: document.getElementById("optA").value, cost: parseInt(document.getElementById("costA").value) },
+        B: { text: document.getElementById("optB").value, cost: parseInt(document.getElementById("costB").value) },
+        C: { text: document.getElementById("optC").value, cost: parseInt(document.getElementById("costC").value) }
+      };
+
+      await db.collection("questions").doc(qid).set({
+        factory, text, timeLimit, image: imageData, options
+      });
+      alert("문제가 수정되었습니다.");
+      history.back();
+    }
+
+    function toBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = e => reject(e);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    document.getElementById("questionImage").addEventListener("change", (e) => {
+      const img = document.getElementById("previewImage");
+      if (e.target.files.length > 0) {
+        const reader = new FileReader();
+        reader.onload = evt => {
+          img.src = evt.target.result;
+          img.style.display = "block";
+        };
+        reader.readAsDataURL(e.target.files[0]);
+      }
+    });
+
+    loadFactories().then(loadQuestion);
+  </script>
 </body>
 </html>
