@@ -3,16 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <title>팀 등록</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
-  <script>
-document.addEventListener("DOMContentLoaded", async () => {
-  await checkProgramOpen(); // ← 가장 상단에 추가!
-  // 기존 내용: 팀ID, 공장 로딩 등
-});
-
-</script>
   <div class="container">
     <h1>👥 신규 팀 등록</h1>
     <input type="text" id="registerId" placeholder="팀 ID" />
@@ -21,10 +15,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     <button onclick="location.href='index.html'">← 돌아가기</button>
   </div>
 
-  <!-- Firebase SDK + Init -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
+  <script>
+    async function checkProgramOpen() {
+      const doc = await db.collection("config").doc("global").get();
+      const isOpen = doc.exists ? doc.data().open : false;
+      if (!isOpen) {
+        alert("⛔ 프로그램이 아직 시작되지 않았습니다.");
+        location.href = "index.html";
+      }
+    }
+    document.addEventListener("DOMContentLoaded", checkProgramOpen);
+  </script>
   <script src="assets/js/auth.js"></script>
 </body>
 </html>
