@@ -138,10 +138,18 @@ async function deleteQuestion(id) {
   loadQuestions();
 }
 
-// 👥 팀 관리 (정렬 기능 포함)
+// 👥 팀 관리 (정렬 기준 저장 포함)
 async function loadTeams() {
   const desc = document.getElementById("sortDesc")?.checked;
-  const query = db.collection("teams").orderBy("score", desc ? "desc" : "asc");
+  const order = desc ? "desc" : "asc";
+
+  // 텍스트 업데이트
+  document.getElementById("sortText").innerText = desc ? "높은 점수 우선" : "낮은 점수 우선";
+
+  // Firestore에 정렬 기준 저장
+  await db.collection("config").doc("ranking").set({ order });
+
+  const query = db.collection("teams").orderBy("score", order);
   const snap = await query.get();
 
   const container = document.getElementById("teamList");
