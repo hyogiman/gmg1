@@ -93,7 +93,23 @@
       const hint = selected.data();
       const hintId = selected.id;
 
-      const startTime = viewed[hintId]?.startTime || Date.now();
+      let startTime;
+
+      if (viewed[hintId]?.startTime) {
+        // 이미 기록된 startTime 존재
+        startTime = viewed[hintId].startTime;
+      } else {
+        // 처음 열람: startTime 새로 저장
+        startTime = Date.now();
+        const update = {
+          [`${factoryName}.${hintId}`]: {
+            viewed: true,
+            startTime
+          }
+        };
+        await db.collection("hint_views").doc(currentTeamId).set(update, { merge: true });
+      }
+
       const timeLimit = hint.timeLimit || 60;
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       remainingSeconds = timeLimit - elapsed;
@@ -103,14 +119,7 @@
         return;
       }
 
-      const update = {
-        [`${factoryName}.${hintId}`]: {
-          viewed: true,
-          startTime
-        }
-      };
-      await db.collection("hint_views").doc(currentTeamId).set(update, { merge: true });
-
+      // 힌트 표시
       document.getElementById("hintSection").style.display = "block";
       document.getElementById("factoryName").innerText = factoryName + " 힌트";
       document.getElementById("hintText").innerText = hint.text || "";
@@ -140,7 +149,6 @@
       }, 1000);
     }
 
-    // 🚀 페이지 로드시 자동 로그인 및 이벤트 바인딩
     window.onload = () => {
       const savedId = localStorage.getItem("hintUser");
       if (savedId) {
