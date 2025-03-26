@@ -4,7 +4,6 @@ async function toggleProgram() {
   await db.collection("config").doc("global").set({ open: state }, { merge: true });
   document.getElementById("programStatusText").innerText = state ? "실행 중" : "중단됨";
 }
-
 async function loadProgramStatus() {
   const doc = await db.collection("config").doc("global").get();
   const open = doc.exists && doc.data().open === true;
@@ -18,7 +17,6 @@ async function toggleOrder() {
   await db.collection("config").doc("ranking").set({ order: asc ? "asc" : "desc" }, { merge: true });
   document.getElementById("orderStatusText").innerText = asc ? "오름차순 (낮은 점수 우선)" : "내림차순 (높은 점수 우선)";
 }
-
 async function loadOrderStatus() {
   const doc = await db.collection("config").doc("ranking").get();
   const isAsc = doc.exists && doc.data().order === "asc";
@@ -34,7 +32,6 @@ async function addFactory() {
 
   const exists = await db.collection("factories").doc(name).get();
   const codeUsed = await db.collection("factories").where("code", "==", code).get();
-
   if (exists.exists) return alert("이미 존재하는 공장명입니다.");
   if (!codeUsed.empty) return alert("이미 사용 중인 코드입니다.");
 
@@ -44,20 +41,44 @@ async function addFactory() {
   loadFactories();
 }
 
+async function editFactory(name) {
+  const newName = prompt("새 공장명을 입력하세요:", name);
+  if (!newName || newName === name) return;
+
+  const factoryDoc = await db.collection("factories").doc(name).get();
+  const data = factoryDoc.data();
+  if (!data) return alert("공장을 찾을 수 없습니다.");
+
+  await db.collection("factories").doc(name).delete();
+  await db.collection("factories").doc(newName).set({ name: newName, code: data.code });
+  loadFactories();
+}
+
+async function deleteFactory(name) {
+  const confirmDelete = confirm(`${name} 공장을 삭제하시겠습니까?`);
+  if (confirmDelete) {
+    await db.collection("factories").doc(name).delete();
+    loadFactories();
+  }
+}
+
 async function loadFactories() {
   const snap = await db.collection("factories").get();
   const list = document.getElementById("factoryList");
   const selector = document.getElementById("factorySelector");
   list.innerHTML = "";
   selector.innerHTML = "";
-
   snap.forEach(doc => {
     const f = doc.data();
-    list.innerHTML += `<li><b>${f.name}</b> (코드: ${f.code})</li>`;
+    list.innerHTML += `
+      <li>
+        <b>${f.name}</b> (코드: ${f.code})
+        <button onclick="editFactory('${f.name}')">수정</button>
+        <button onclick="deleteFactory('${f.name}')">삭제</button>
+      </li>`;
     selector.innerHTML += `<option value="${doc.id}">${f.name}</option>`;
   });
 }
-
 // === 문제 등록 ===
 async function saveQuestion() {
   const factoryId = document.getElementById("factorySelector").value;
@@ -121,7 +142,7 @@ document.getElementById("questionImage").addEventListener("change", (e) => {
   }
 });
 
-// === 문제 목록 ===
+// === 문제 목록 및 삭제/수정 ===
 async function loadQuestions() {
   const snap = await db.collection("questions").get();
   const div = document.getElementById("questionList");
@@ -129,11 +150,28 @@ async function loadQuestions() {
 
   snap.forEach(doc => {
     const q = doc.data();
-    div.innerHTML += `<div><b>${q.text}</b> (공장: ${q.factory})</div>`;
+    div.innerHTML += `
+      <div>
+        <b>${q.text}</b> (공장: ${q.factory})
+        <button onclick="editQuestion('${doc.id}')">수정</button>
+        <button onclick="deleteQuestion('${doc.id}')">삭제</button>
+      </div>`;
   });
 }
 
-// === 팀 관리 ===
+function editQuestion(id) {
+  window.location.href = `edit.html?id=${id}`;
+}
+
+async function deleteQuestion(id) {
+  const confirmDelete = confirm("해당 문제를 삭제하시겠습니까?");
+  if (confirmDelete) {
+    await db.collection("questions").doc(id).delete();
+    loadQuestions();
+  }
+}
+
+// === 팀 목록 ===
 async function loadTeams() {
   const config = await db.collection("config").doc("ranking").get();
   const order = config.exists && config.data().order === "desc" ? "desc" : "asc";
@@ -165,8 +203,7 @@ async function loadAnswerRecords() {
           <td>${r.option}</td>
           <td>${r.cost}</td>
           <td>${date}</td>
-        </tr>
-      `;
+        </tr>`;
     });
   });
 
