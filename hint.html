@@ -10,6 +10,7 @@
   <div class="container">
     <h1>🔐 힌트 페이지</h1>
 
+    <!-- 로그인 영역 -->
     <div id="loginBox">
       <input type="text" id="teamId" placeholder="팀 ID" />
       <input type="password" id="teamPw" placeholder="비밀번호" />
@@ -18,6 +19,14 @@
       <button onclick="resetSession()">[개발용] 로그인/세션 리셋</button>
     </div>
 
+    <!-- 공장 코드 입력 영역 -->
+    <div id="factoryCodeBox" style="display:none;">
+      <input type="text" id="factoryCode" placeholder="공장 코드 (4자리)" maxlength="4" />
+      <button onclick="handleFactoryCode()">확인</button>
+      <p id="factoryMsg" style="color: red;"></p>
+    </div>
+
+    <!-- 힌트 출력 영역 -->
     <div id="hintSection" style="display:none;">
       <h2 id="factoryName">공장명</h2>
       <img id="hintImage" style="max-width:100%; display:none;" />
@@ -25,6 +34,7 @@
       <p><strong>남은 시간:</strong> <span id="countdown" style="color:red; font-weight:bold;"></span></p>
     </div>
 
+    <!-- 중앙 제어 차단 -->
     <div id="blockMsg" style="display:none; text-align:center; margin-top:40px;">
       <h2 style="color: red;">🚫 현재 힌트 열람이 중지되어 있습니다.</h2>
       <button onclick="resetSession()">🔄 [테스트용] 세션 초기화</button>
@@ -38,6 +48,7 @@
 
   <script>
     let currentTeamId = null;
+    let selectedFactoryId = null;
     let countdownInterval;
     let remainingSeconds = 0;
 
@@ -67,47 +78,58 @@
         localStorage.setItem("hintUser", id);
         msg.innerText = "";
         document.getElementById("loginBox").style.display = "none";
-        showHint();
+        document.getElementById("factoryCodeBox").style.display = "block";
       } catch (err) {
         console.error("로그인 오류:", err);
         msg.innerText = "로그인 중 오류가 발생했습니다.";
       }
     }
 
-    async function showHint() {
-      // 🔐 중앙 제어 확인
+    async function handleFactoryCode() {
+      const code = document.getElementById("factoryCode").value.trim();
+      const msg = document.getElementById("factoryMsg");
+      msg.innerText = "";
+
+      if (!code) {
+        msg.innerText = "공장 코드를 입력하세요.";
+        return;
+      }
+
+      // 중앙제어 확인
       const configDoc = await db.collection("config").doc("global").get();
       if (!configDoc.exists || !configDoc.data().open) {
-        document.getElementById("hintSection").style.display = "none";
-        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("factoryCodeBox").style.display = "none";
         document.getElementById("blockMsg").style.display = "block";
         return;
       }
 
-      const factoryCode = prompt("공장 코드를 입력하세요 (4자리):");
+      // 공장 코드 확인
       const factories = await db.collection("factories").get();
-      let factoryName = null;
+      let factoryId = null;
 
       factories.forEach(doc => {
-        if (doc.data().code === factoryCode) factoryName = doc.id;
+        if (doc.data().code === code) factoryId = doc.id;
       });
 
-      if (!factoryName) {
-        alert("코드가 유효하지 않습니다.");
+      if (!factoryId) {
+        msg.innerText = "유효하지 않은 공장 코드입니다.";
         return;
       }
 
+      selectedFactoryId = factoryId;
+      showHint(factoryId);
+    }
+
+    async function showHint(factoryName) {
       const hintDocs = await db.collection("hints").doc(factoryName).collection("items").get();
       const viewDoc = await db.collection("hint_views").doc(currentTeamId).get();
       const viewedData = viewDoc.exists ? viewDoc.data() : {};
 
-      // 🔍 기존에 열람한 힌트 있는지 검사
-      const previouslyViewedKey = Object.keys(viewedData).find(key => key.startsWith(factoryName + "."));
-
+      const previouslyViewedKey = Object.keys(viewedData).find(k => k.startsWith(factoryName + "."));
       let hintId, hint, startTime;
 
       if (previouslyViewedKey) {
-        // ✅ 이미 열람한 힌트가 있음 → 그걸 다시 보여줌
+        // 이전 힌트 사용
         hintId = previouslyViewedKey.split(".")[1];
         const hintSnap = await db.collection("hints").doc(factoryName).collection("items").doc(hintId).get();
         if (!hintSnap.exists) {
@@ -117,14 +139,16 @@
         hint = hintSnap.data();
         startTime = viewedData[previouslyViewedKey].startTime;
       } else {
-        // 🆕 새로운 힌트 선택
         const viewedHintIds = Object.keys(viewedData)
-          .filter(key => key.startsWith(factoryName + "."))
-          .map(key => key.split(".")[1]);
+          .filter(k => k.startsWith(factoryName + "."))
+          .map(k => k.split(".")[1]);
 
         const unviewed = hintDocs.docs.filter(doc => !viewedHintIds.includes(doc.id));
         if (unviewed.length === 0) {
           alert("모든 힌트를 이미 열람했습니다.");
+          document.getElementById("hintSection").style.display = "none";
+          document.getElementById("factoryCodeBox").style.display = "none";
+          document.getElementById("loginBox").style.display = "block";
           return;
         }
 
@@ -133,7 +157,6 @@
         hint = selected.data();
         startTime = Date.now();
 
-        // 🔐 바로 Firestore에 기록
         const update = {
           [`${factoryName}.${hintId}`]: {
             viewed: true,
@@ -152,7 +175,6 @@
         return;
       }
 
-      // ✅ 힌트 출력
       document.getElementById("hintSection").style.display = "block";
       document.getElementById("factoryName").innerText = factoryName + " 힌트";
       document.getElementById("hintText").innerText = hint.text || "";
@@ -187,7 +209,7 @@
       if (savedId) {
         currentTeamId = savedId;
         document.getElementById("loginBox").style.display = "none";
-        showHint();
+        document.getElementById("factoryCodeBox").style.display = "block";
       }
 
       document.getElementById("loginButton").addEventListener("click", login);
