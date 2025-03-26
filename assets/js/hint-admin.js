@@ -119,7 +119,7 @@ document.getElementById("hintImage").addEventListener("change", e => {
   reader.readAsDataURL(file);
 });
 
-// 타이머 설정 불러오기
+// 타이머 토글 불러오기
 async function loadHintTimerToggle() {
   const doc = await db.collection("config").doc("hintTimer").get();
   const enabled = doc.exists && doc.data().enabled === true;
@@ -127,7 +127,7 @@ async function loadHintTimerToggle() {
   document.getElementById("hintTimerStatus").innerText = enabled ? "활성화됨" : "비활성화됨";
 }
 
-// 토글 변경
+// 토글 변경 저장
 async function toggleHintTimer() {
   const enabled = document.getElementById("hintTimerSwitch").checked;
   await db.collection("config").doc("hintTimer").set({ enabled });
@@ -171,7 +171,7 @@ async function loadHintStats() {
           <td>${factoryId}</td>
           <td>${hintText}</td>
           <td>${time}</td>
-          <td><button class="delete-btn" onclick="deleteHintView('${teamId}', '${compoundKey}')">삭제</button></td>
+          <td><button class="delete-btn" onclick="deleteHintView('${teamId}', \`${compoundKey}\`)">삭제</button></td>
         </tr>
       `;
     }
@@ -181,15 +181,15 @@ async function loadHintStats() {
   table.innerHTML = html;
 }
 
+// 🧨 최종 삭제 함수 (compat용)
 async function deleteHintView(teamId, compoundKey) {
   const ok = confirm(`정말 삭제하시겠습니까?\n${teamId} - ${compoundKey}`);
   if (!ok) return;
 
   const update = {};
-  update[compoundKey] = firebase.firestore.FieldValue.delete(); // 문자열 키 그대로 사용
+  update[compoundKey] = firebase.firestore.FieldValue.delete();
 
   try {
-    // ❗ compat에서는 set + merge로 dot 필드 삭제 가능
     await db.collection("hint_views").doc(teamId).set(update, { merge: true });
     alert("삭제 완료!");
     loadHintStats();
@@ -198,6 +198,7 @@ async function deleteHintView(teamId, compoundKey) {
     alert("삭제 중 오류 발생:\n" + err.message);
   }
 }
+
 // 초기 실행
 document.addEventListener("DOMContentLoaded", () => {
   loadFactories();
