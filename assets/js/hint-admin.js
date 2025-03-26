@@ -119,7 +119,7 @@ document.getElementById("hintImage").addEventListener("change", e => {
   reader.readAsDataURL(file);
 });
 
-// 타이머 토글 불러오기
+// 타이머 설정 불러오기
 async function loadHintTimerToggle() {
   const doc = await db.collection("config").doc("hintTimer").get();
   const enabled = doc.exists && doc.data().enabled === true;
@@ -127,14 +127,14 @@ async function loadHintTimerToggle() {
   document.getElementById("hintTimerStatus").innerText = enabled ? "활성화됨" : "비활성화됨";
 }
 
-// 토글 변경 저장
+// 토글 변경
 async function toggleHintTimer() {
   const enabled = document.getElementById("hintTimerSwitch").checked;
   await db.collection("config").doc("hintTimer").set({ enabled });
   document.getElementById("hintTimerStatus").innerText = enabled ? "활성화됨" : "비활성화됨";
 }
 
-// 📊 팀별 힌트 열람 통계 출력 (삭제 기능 포함)
+// 📊 힌트 열람 통계 (삭제 가능)
 async function loadHintStats() {
   const table = document.getElementById("hintStatsTable");
   table.innerHTML = "<p>불러오는 중...</p>";
@@ -150,7 +150,6 @@ async function loadHintStats() {
       const [factoryId, hintId] = compoundKey.split(".");
       const viewData = data[compoundKey];
 
-      // 🔍 힌트 본문 불러오기
       let hintText = "(불러오기 실패)";
       try {
         const hintDoc = await db.collection("hints")
@@ -181,9 +180,10 @@ async function loadHintStats() {
   html += "</table>";
   table.innerHTML = html;
 }
-// 🔐 열람 기록 삭제 함수
+
+// 🔥 열람 기록 삭제 (필드만 제거)
 async function deleteHintView(teamId, compoundKey) {
-  const ok = confirm(`정말 삭제하시겠습니까?\n(${teamId} - ${compoundKey})`);
+  const ok = confirm(`정말 삭제하시겠습니까?\n${teamId} - ${compoundKey}`);
   if (!ok) return;
 
   const update = {};
@@ -193,6 +193,7 @@ async function deleteHintView(teamId, compoundKey) {
   alert("삭제 완료!");
   loadHintStats();
 }
+
 // 초기 실행
 document.addEventListener("DOMContentLoaded", () => {
   loadFactories();
