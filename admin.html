@@ -5,6 +5,51 @@
   <title>관리자 패널</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="assets/css/style.css" />
+  <style>
+    .section { display: none; margin-top: 20px; }
+    .section.active { display: block; }
+    nav button {
+      margin: 5px;
+      padding: 10px 14px;
+      background: #343a40;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    nav button:hover { background: #495057; }
+
+    .switch { position: relative; display: inline-block; width: 60px; height: 30px; }
+    .switch input { display: none; }
+    .slider {
+      position: absolute; cursor: pointer;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px; height: 100%; width: 100%;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 24px; width: 24px; left: 4px; bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: #28a745;
+    }
+    input:checked + .slider:before {
+      transform: translateX(28px);
+    }
+    table, th, td {
+      border: 1px solid #ccc;
+      border-collapse: collapse;
+      padding: 8px;
+    }
+    th {
+      background-color: #f1f1f1;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
@@ -20,7 +65,6 @@
       <button onclick="showSection('answers')">📋 응답 기록</button>
     </nav>
 
-    <!-- 🔌 프로그램 제어 -->
     <section id="section-program" class="section">
       <h2>🔌 프로그램 제어</h2>
       <label class="switch">
@@ -30,7 +74,6 @@
       <span id="programStatusText">상태 확인 중...</span>
     </section>
 
-    <!-- 📈 정렬 기준 -->
     <section id="section-order" class="section">
       <h2>📈 정렬 기준</h2>
       <label class="switch">
@@ -40,45 +83,40 @@
       <span id="orderStatusText">기준 확인 중...</span>
     </section>
 
-    <!-- 🏭 공장 관리 -->
     <section id="section-factory" class="section">
       <h2>🏭 공장 관리</h2>
       <input type="text" id="newFactoryName" placeholder="공장명 입력" />
-      <input type="text" id="newFactoryCode" placeholder="코드(4자리 숫자)" maxlength="4" />
+      <input type="text" id="newFactoryCode" placeholder="코드 (4자리)" maxlength="4" />
       <button onclick="addFactory()">공장 추가</button>
       <ul id="factoryList"></ul>
     </section>
 
-    <!-- 🧩 문제 등록 -->
     <section id="section-question" class="section">
       <h2>🧩 문제 등록</h2>
-      <select id="factorySelector"></select>
-      <textarea id="questionText" placeholder="문제 내용 입력"></textarea>
-      <input type="file" id="questionImage" accept="image/*" />
-      <img id="previewImage" style="max-width: 200px; display: none;" />
-      <input type="number" id="timeLimit" placeholder="제한시간(초)" />
+      <select id="factorySelector"></select><br/>
+      <textarea id="questionText" placeholder="문제 내용 입력"></textarea><br/>
+      <input type="file" id="questionImage" accept="image/*" /><br/>
+      <img id="previewImage" style="max-width: 200px; display: none;" /><br/>
+      <input type="number" id="timeLimit" placeholder="제한시간(초)" /><br/>
       <input type="text" id="optA" placeholder="옵션 A" />
-      <input type="number" id="costA" placeholder="비용 A" />
+      <input type="number" id="costA" placeholder="비용 A" /><br/>
       <input type="text" id="optB" placeholder="옵션 B" />
-      <input type="number" id="costB" placeholder="비용 B" />
+      <input type="number" id="costB" placeholder="비용 B" /><br/>
       <input type="text" id="optC" placeholder="옵션 C" />
-      <input type="number" id="costC" placeholder="비용 C" />
+      <input type="number" id="costC" placeholder="비용 C" /><br/>
       <button onclick="saveQuestion()">문제 등록</button>
     </section>
 
-    <!-- 📦 문제 목록 -->
     <section id="section-questionList" class="section">
       <h2>📦 문제 목록</h2>
       <div id="questionList">불러오는 중...</div>
     </section>
 
-    <!-- 👥 팀 관리 -->
     <section id="section-teams" class="section">
       <h2>👥 팀 관리</h2>
       <div id="teamList">불러오는 중...</div>
     </section>
 
-    <!-- 📋 응답 기록 -->
     <section id="section-answers" class="section">
       <h2>📋 응답 기록</h2>
       <button onclick="loadAnswerRecords()">불러오기</button>
@@ -86,7 +124,6 @@
     </section>
   </div>
 
-  <!-- Firebase & JS -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
