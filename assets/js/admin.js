@@ -4,6 +4,7 @@ async function toggleProgram() {
   await db.collection("config").doc("global").set({ open: state }, { merge: true });
   document.getElementById("programStatusText").innerText = state ? "실행 중" : "중단됨";
 }
+
 async function loadProgramStatus() {
   const doc = await db.collection("config").doc("global").get();
   const open = doc.exists && doc.data().open === true;
@@ -17,6 +18,7 @@ async function toggleOrder() {
   await db.collection("config").doc("ranking").set({ order: asc ? "asc" : "desc" }, { merge: true });
   document.getElementById("orderStatusText").innerText = asc ? "오름차순 (낮은 점수 우선)" : "내림차순 (높은 점수 우선)";
 }
+
 async function loadOrderStatus() {
   const doc = await db.collection("config").doc("ranking").get();
   const isAsc = doc.exists && doc.data().order === "asc";
@@ -142,7 +144,7 @@ document.getElementById("questionImage").addEventListener("change", (e) => {
   }
 });
 
-// === 문제 목록 및 삭제/수정 ===
+// === 문제 목록 ===
 async function loadQuestions() {
   const snap = await db.collection("questions").get();
   const div = document.getElementById("questionList");
@@ -171,7 +173,7 @@ async function deleteQuestion(id) {
   }
 }
 
-// === 팀 목록 ===
+// === 팀 관리 ===
 async function loadTeams() {
   const config = await db.collection("config").doc("ranking").get();
   const order = config.exists && config.data().order === "desc" ? "desc" : "asc";
@@ -181,25 +183,53 @@ async function loadTeams() {
 
   snap.forEach(doc => {
     const t = doc.data();
-    list.innerHTML += `<div><b>${doc.id}</b> 점수: ${t.score || 0}</div>`;
+    list.innerHTML += `
+      <div>
+        <b>${doc.id}</b> 점수: ${t.score || 0}
+        <button onclick="resetTeam('${doc.id}')">초기화</button>
+        <button onclick="deleteTeam('${doc.id}')">삭제</button>
+      </div>`;
   });
+}
+
+async function deleteTeam(id) {
+  const confirmDelete = confirm(`${id} 팀을 삭제하시겠습니까?`);
+  if (confirmDelete) {
+    await db.collection("teams").doc(id).delete();
+    await db.collection("answers").doc(id).delete();
+    loadTeams();
+  }
+}
+
+async function resetTeam(id) {
+  await db.collection("teams").doc(id).set({ score: 0 }, { merge: true });
+  await db.collection("answers").doc(id).set({ records: [] });
+  loadTeams();
 }
 
 // === 응답 기록 ===
 async function loadAnswerRecords() {
-  const snap = await db.collection("answers").get();
-  const table = document.getElementById("answerTable");
-  table.innerHTML = "<table><tr><th>팀</th><th>문제ID</th><th>선택</th><th>비용</th><th>시간</th></tr>";
+  const answersSnap = await db.collection("answers").get();
+  const questionsSnap = await db.collection("questions").get();
 
-  snap.forEach(doc => {
+  const questionMap = {};
+  questionsSnap.forEach(doc => {
+    questionMap[doc.id] = doc.data().text;
+  });
+
+  const table = document.getElementById("answerTable");
+  table.innerHTML = "<table><tr><th>팀</th><th>문제</th><th>선택</th><th>비용</th><th>시간</th></tr>";
+
+  answersSnap.forEach(doc => {
     const teamId = doc.id;
     const records = doc.data().records || [];
     records.forEach(r => {
       const date = new Date(r.time).toLocaleString();
+      const questionText = questionMap[r.questionId] || r.questionId;
       table.innerHTML += `
         <tr>
           <td>${teamId}</td>
-          <td>${r.questionId}</td>
+          <td>${questionText}</td>
           <td>${r.option}</td>
           <td>${r.cost}</td>
           <td>${date}</td>
