@@ -218,15 +218,15 @@ async function loadAnswerRecords() {
   });
 
   const table = document.getElementById("answerTable");
-  table.innerHTML = "<table><tr><th>팀</th><th>문제</th><th>선택</th><th>비용</th><th>시간</th></tr>";
+  let html = "<table><tr><th>팀</th><th>문제</th><th>선택</th><th>비용</th><th>시간</th></tr>";
 
   answersSnap.forEach(doc => {
     const teamId = doc.id;
     const records = doc.data().records || [];
     records.forEach(r => {
       const date = new Date(r.time).toLocaleString();
-      const questionText = questionMap[r.questionId] || r.questionId;
-      table.innerHTML += `
+      const questionText = questionMap[r.questionId] || "문제 없음";
+      html += `
         <tr>
           <td>${teamId}</td>
           <td>${questionText}</td>
@@ -237,9 +237,9 @@ async function loadAnswerRecords() {
     });
   });
 
-  table.innerHTML += "</table>";
+  html += "</table>";
+  table.innerHTML = html;
 }
-
 // === 초기 실행 ===
 document.addEventListener("DOMContentLoaded", () => {
   loadProgramStatus();
