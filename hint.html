@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="assets/css/style.css" />
 </head>
+<!-- ... 생략 ... -->
 <body>
   <div class="container">
     <h1>🔐 힌트 페이지</h1>
@@ -15,9 +16,7 @@
       <input type="password" id="teamPw" placeholder="비밀번호" />
       <button id="loginButton">로그인</button>
       <p id="loginMsg" style="color: red;"></p>
-      <button onclick="localStorage.removeItem('hintUser'); localStorage.removeItem('hintCache'); location.reload();">
-        [개발용] 로그인/캐시 리셋
-      </button>
+      <button onclick="resetSession()">[개발용] 로그인/캐시 리셋</button>
     </div>
 
     <div id="hintSection" style="display:none;">
@@ -26,9 +25,15 @@
       <p id="hintText"></p>
       <p><strong>남은 시간:</strong> <span id="countdown" style="color:red; font-weight:bold;"></span></p>
     </div>
+
+    <!-- 🆕 중앙제어 차단 메시지 + 리셋 버튼 표시용 -->
+    <div id="blockMsg" style="display:none; text-align:center; margin-top:40px;">
+      <h2 style="color: red;">🚫 현재 힌트 열람이 중지되어 있습니다.</h2>
+      <button onclick="resetSession()">🔄 [테스트용] 세션 초기화</button>
+    </div>
   </div>
 
-  <!-- Firebase -->
+  <!-- Firebase + JS -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
@@ -37,6 +42,12 @@
     let currentTeamId = null;
     let countdownInterval;
     let remainingSeconds = 0;
+
+    function resetSession() {
+      localStorage.removeItem("hintUser");
+      localStorage.removeItem("hintCache");
+      location.reload();
+    }
 
     async function login() {
       const id = document.getElementById("teamId").value.trim();
@@ -67,11 +78,12 @@
     }
 
     async function showHint() {
-      // 🔐 중앙 제어 확인
       const configDoc = await db.collection("config").doc("program").get();
       if (!configDoc.exists || !configDoc.data().started) {
-        alert("현재 힌트 열람이 중지되어 있습니다.");
-        localStorage.removeItem("hintCache"); // 🧼 캐시 제거
+        localStorage.removeItem("hintCache"); // 캐시 제거
+        document.getElementById("hintSection").style.display = "none";
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("blockMsg").style.display = "block"; // 🚨 메시지+버튼 표시
         return;
       }
 
@@ -85,13 +97,10 @@
 
         try {
           const hintSnap = await db.collection("hints").doc(factoryName).collection("items").doc(hintId).get();
-          if (!hintSnap.exists) {
-            throw new Error("힌트 없음");
-          }
+          if (!hintSnap.exists) throw new Error("힌트 없음");
           hint = hintSnap.data();
         } catch (err) {
-          console.warn("캐시 힌트 로딩 실패:", err);
-          alert("힌트를 불러올 수 없습니다. 다시 시도해 주세요.");
+          alert("힌트를 불러올 수 없습니다.");
           localStorage.removeItem("hintCache");
           return;
         }
@@ -150,7 +159,6 @@
         return;
       }
 
-      // 힌트 출력
       document.getElementById("hintSection").style.display = "block";
       document.getElementById("factoryName").innerText = factoryName + " 힌트";
       document.getElementById("hintText").innerText = hint.text || "";
@@ -193,3 +201,4 @@
   </script>
 </body>
 </html>
+
