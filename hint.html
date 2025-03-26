@@ -15,7 +15,9 @@
       <input type="password" id="teamPw" placeholder="비밀번호" />
       <button id="loginButton">로그인</button>
       <p id="loginMsg" style="color: red;"></p>
-      <button onclick="localStorage.removeItem('hintUser'); localStorage.removeItem('hintCache'); location.reload();">[개발용] 로그인 리셋</button>
+      <button onclick="localStorage.removeItem('hintUser'); localStorage.removeItem('hintCache'); location.reload();">
+        [개발용] 로그인/캐시 리셋
+      </button>
     </div>
 
     <div id="hintSection" style="display:none;">
@@ -69,10 +71,10 @@
       const configDoc = await db.collection("config").doc("program").get();
       if (!configDoc.exists || !configDoc.data().started) {
         alert("현재 힌트 열람이 중지되어 있습니다.");
+        localStorage.removeItem("hintCache"); // 🧼 캐시 제거
         return;
       }
 
-      // 힌트 캐시 확인
       const cached = localStorage.getItem("hintCache");
       let factoryName, hintId, hint;
 
@@ -80,7 +82,19 @@
         const cache = JSON.parse(cached);
         factoryName = cache.factoryName;
         hintId = cache.hintId;
-        hint = (await db.collection("hints").doc(factoryName).collection("items").doc(hintId).get()).data();
+
+        try {
+          const hintSnap = await db.collection("hints").doc(factoryName).collection("items").doc(hintId).get();
+          if (!hintSnap.exists) {
+            throw new Error("힌트 없음");
+          }
+          hint = hintSnap.data();
+        } catch (err) {
+          console.warn("캐시 힌트 로딩 실패:", err);
+          alert("힌트를 불러올 수 없습니다. 다시 시도해 주세요.");
+          localStorage.removeItem("hintCache");
+          return;
+        }
       } else {
         const factoryCode = prompt("공장 코드를 입력하세요 (4자리):");
         const factories = await db.collection("factories").get();
@@ -107,7 +121,6 @@
         hintId = selected.id;
         hint = selected.data();
 
-        // 캐시 저장
         localStorage.setItem("hintCache", JSON.stringify({ factoryName, hintId }));
       }
 
@@ -137,6 +150,7 @@
         return;
       }
 
+      // 힌트 출력
       document.getElementById("hintSection").style.display = "block";
       document.getElementById("factoryName").innerText = factoryName + " 힌트";
       document.getElementById("hintText").innerText = hint.text || "";
