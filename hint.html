@@ -5,10 +5,53 @@
   <title>힌트 열람</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="assets/css/style.css" />
+  <style>
+    #countdownBox {
+      font-size: 1.5rem;
+      margin: 1rem 0;
+      text-align: center;
+    }
+
+    #countdown {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: crimson;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.6; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .danger-note {
+      font-size: 0.9rem;
+      color: #999;
+      text-align: center;
+      margin-top: 0.5rem;
+    }
+
+    .confirm-btn {
+      display: block;
+      margin: 2rem auto;
+      padding: 10px 20px;
+      font-size: 1rem;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .confirm-btn:hover {
+      background-color: #388E3C;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
-    <h1>🔐 힌트 페이지</h1>
+    <h1>🔐 힌트 열람</h1>
 
     <!-- 로그인 -->
     <div id="loginBox">
@@ -16,7 +59,7 @@
       <input type="password" id="teamPw" placeholder="비밀번호" />
       <button id="loginButton">로그인</button>
       <p id="loginMsg" style="color: red;"></p>
-      <button onclick="resetSession()">[개발용] 로그인/세션 리셋</button>
+      <button onclick="resetSession()">[세션 초기화]</button>
     </div>
 
     <!-- 공장 코드 입력 -->
@@ -31,30 +74,39 @@
       <h2 id="factoryName">공장명</h2>
       <img id="hintImage" style="max-width:100%; display:none;" />
       <p id="hintText"></p>
-      <p><strong>남은 시간:</strong> <span id="countdown" style="color:red; font-weight:bold;"></span></p>
+
+      <div id="countdownBox">
+        남은 시간: <span id="countdown"></span>
+        <div class="danger-note">※ 새로고침하거나 뒤로가면 힌트는 사라집니다.</div>
+      </div>
+
+      <button class="confirm-btn" onclick="backToLogin()">✅ 확인 완료</button>
     </div>
 
-    <!-- 제어 중지 안내 -->
+    <!-- 차단 메시지 -->
     <div id="blockMsg" style="display:none; text-align:center; margin-top:40px;">
       <h2 style="color: red;">🚫 현재 힌트 열람이 중지되어 있습니다.</h2>
-      <button onclick="resetSession()">🔄 [테스트용] 세션 초기화</button>
+      <button onclick="resetSession()">🔄 [세션 초기화]</button>
     </div>
   </div>
 
-  <!-- Firebase -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
 
   <script>
     let currentTeamId = null;
-    let selectedFactoryId = null;
     let countdownInterval;
     let remainingSeconds = 0;
 
     function resetSession() {
       localStorage.removeItem("hintUser");
       location.reload();
+    }
+
+    function backToLogin() {
+      resetSession();
     }
 
     async function login() {
@@ -104,6 +156,7 @@
 
       const factories = await db.collection("factories").get();
       let factoryId = null;
+
       factories.forEach(doc => {
         if (doc.data().code === code) factoryId = doc.id;
       });
@@ -113,57 +166,44 @@
         return;
       }
 
-      selectedFactoryId = factoryId;
       showHint(factoryId);
     }
 
-    async function showHint(factoryName) {
-      const hintDocs = await db.collection("hints").doc(factoryName).collection("items").get();
+    async function showHint(factoryId) {
+      const hintDocs = await db.collection("hints").doc(factoryId).collection("items").get();
       const viewDoc = await db.collection("hint_views").doc(currentTeamId).get();
       const viewedData = viewDoc.exists ? viewDoc.data() : {};
 
-      // 🔍 해당 공장의 모든 viewed 힌트 ID 수집
       const viewedHintIds = Object.keys(viewedData)
-        .filter(k => k.startsWith(factoryName + "."))
+        .filter(k => k.startsWith(factoryId + "."))
         .map(k => k.split(".")[1]);
 
       const unviewed = hintDocs.docs.filter(doc => !viewedHintIds.includes(doc.id));
-
       if (unviewed.length === 0) {
         alert("모든 힌트를 이미 열람했습니다.");
-        document.getElementById("hintSection").style.display = "none";
-        document.getElementById("factoryCodeBox").style.display = "none";
-        document.getElementById("loginBox").style.display = "block";
+        resetSession();
         return;
       }
 
-      // 무작위 힌트 선택
       const selected = unviewed[Math.floor(Math.random() * unviewed.length)];
       const hintId = selected.id;
       const hint = selected.data();
       const startTime = Date.now();
 
-      // 📦 힌트 열람 기록 저장
       const update = {
-        [`${factoryName}.${hintId}`]: {
+        [`${factoryId}.${hintId}`]: {
           viewed: true,
           startTime
         }
       };
       await db.collection("hint_views").doc(currentTeamId).set(update, { merge: true });
 
-      // 타이머 세팅
       const timeLimit = hint.timeLimit || 60;
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      remainingSeconds = timeLimit - elapsed;
+      remainingSeconds = timeLimit;
 
-      if (remainingSeconds <= 0) {
-        alert("이 힌트의 열람 시간이 종료되었습니다.");
-        return;
-      }
-
+      document.getElementById("factoryCodeBox").style.display = "none";
       document.getElementById("hintSection").style.display = "block";
-      document.getElementById("factoryName").innerText = factoryName + " 힌트";
+      document.getElementById("factoryName").innerText = `${factoryId} 힌트`;
       document.getElementById("hintText").innerText = hint.text || "";
 
       if (hint.image) {
@@ -181,12 +221,12 @@
 
       countdownInterval = setInterval(() => {
         remainingSeconds--;
+        counter.innerText = `${remainingSeconds}초`;
+
         if (remainingSeconds <= 0) {
           clearInterval(countdownInterval);
-          document.getElementById("hintSection").style.display = "none";
           alert("시간이 종료되었습니다.");
-        } else {
-          counter.innerText = `${remainingSeconds}초`;
+          resetSession(); // ✅ 세션 제거 후 복귀
         }
       }, 1000);
     }
