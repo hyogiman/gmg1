@@ -10,7 +10,7 @@
   <div class="container">
     <h1>🔐 힌트 페이지</h1>
 
-    <!-- 로그인 영역 -->
+    <!-- 로그인 -->
     <div id="loginBox">
       <input type="text" id="teamId" placeholder="팀 ID" />
       <input type="password" id="teamPw" placeholder="비밀번호" />
@@ -19,14 +19,14 @@
       <button onclick="resetSession()">[개발용] 로그인/세션 리셋</button>
     </div>
 
-    <!-- 공장 코드 입력 영역 -->
+    <!-- 공장 코드 입력 -->
     <div id="factoryCodeBox" style="display:none;">
       <input type="text" id="factoryCode" placeholder="공장 코드 (4자리)" maxlength="4" />
       <button onclick="handleFactoryCode()">확인</button>
       <p id="factoryMsg" style="color: red;"></p>
     </div>
 
-    <!-- 힌트 출력 영역 -->
+    <!-- 힌트 출력 -->
     <div id="hintSection" style="display:none;">
       <h2 id="factoryName">공장명</h2>
       <img id="hintImage" style="max-width:100%; display:none;" />
@@ -34,7 +34,7 @@
       <p><strong>남은 시간:</strong> <span id="countdown" style="color:red; font-weight:bold;"></span></p>
     </div>
 
-    <!-- 중앙 제어 차단 -->
+    <!-- 제어 중지 안내 -->
     <div id="blockMsg" style="display:none; text-align:center; margin-top:40px;">
       <h2 style="color: red;">🚫 현재 힌트 열람이 중지되어 있습니다.</h2>
       <button onclick="resetSession()">🔄 [테스트용] 세션 초기화</button>
@@ -95,7 +95,6 @@
         return;
       }
 
-      // 중앙제어 확인
       const configDoc = await db.collection("config").doc("global").get();
       if (!configDoc.exists || !configDoc.data().open) {
         document.getElementById("factoryCodeBox").style.display = "none";
@@ -103,10 +102,8 @@
         return;
       }
 
-      // 공장 코드 확인
       const factories = await db.collection("factories").get();
       let factoryId = null;
-
       factories.forEach(doc => {
         if (doc.data().code === code) factoryId = doc.id;
       });
@@ -125,47 +122,37 @@
       const viewDoc = await db.collection("hint_views").doc(currentTeamId).get();
       const viewedData = viewDoc.exists ? viewDoc.data() : {};
 
-      const previouslyViewedKey = Object.keys(viewedData).find(k => k.startsWith(factoryName + "."));
-      let hintId, hint, startTime;
+      // 🔍 해당 공장의 모든 viewed 힌트 ID 수집
+      const viewedHintIds = Object.keys(viewedData)
+        .filter(k => k.startsWith(factoryName + "."))
+        .map(k => k.split(".")[1]);
 
-      if (previouslyViewedKey) {
-        // 이전 힌트 사용
-        hintId = previouslyViewedKey.split(".")[1];
-        const hintSnap = await db.collection("hints").doc(factoryName).collection("items").doc(hintId).get();
-        if (!hintSnap.exists) {
-          alert("기존 힌트를 불러올 수 없습니다.");
-          return;
-        }
-        hint = hintSnap.data();
-        startTime = viewedData[previouslyViewedKey].startTime;
-      } else {
-        const viewedHintIds = Object.keys(viewedData)
-          .filter(k => k.startsWith(factoryName + "."))
-          .map(k => k.split(".")[1]);
+      const unviewed = hintDocs.docs.filter(doc => !viewedHintIds.includes(doc.id));
 
-        const unviewed = hintDocs.docs.filter(doc => !viewedHintIds.includes(doc.id));
-        if (unviewed.length === 0) {
-          alert("모든 힌트를 이미 열람했습니다.");
-          document.getElementById("hintSection").style.display = "none";
-          document.getElementById("factoryCodeBox").style.display = "none";
-          document.getElementById("loginBox").style.display = "block";
-          return;
-        }
-
-        const selected = unviewed[Math.floor(Math.random() * unviewed.length)];
-        hintId = selected.id;
-        hint = selected.data();
-        startTime = Date.now();
-
-        const update = {
-          [`${factoryName}.${hintId}`]: {
-            viewed: true,
-            startTime
-          }
-        };
-        await db.collection("hint_views").doc(currentTeamId).set(update, { merge: true });
+      if (unviewed.length === 0) {
+        alert("모든 힌트를 이미 열람했습니다.");
+        document.getElementById("hintSection").style.display = "none";
+        document.getElementById("factoryCodeBox").style.display = "none";
+        document.getElementById("loginBox").style.display = "block";
+        return;
       }
 
+      // 무작위 힌트 선택
+      const selected = unviewed[Math.floor(Math.random() * unviewed.length)];
+      const hintId = selected.id;
+      const hint = selected.data();
+      const startTime = Date.now();
+
+      // 📦 힌트 열람 기록 저장
+      const update = {
+        [`${factoryName}.${hintId}`]: {
+          viewed: true,
+          startTime
+        }
+      };
+      await db.collection("hint_views").doc(currentTeamId).set(update, { merge: true });
+
+      // 타이머 세팅
       const timeLimit = hint.timeLimit || 60;
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       remainingSeconds = timeLimit - elapsed;
