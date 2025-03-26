@@ -181,7 +181,18 @@ async function loadHintStats() {
   html += "</table>";
   table.innerHTML = html;
 }
+// 🔐 열람 기록 삭제 함수
+async function deleteHintView(teamId, compoundKey) {
+  const ok = confirm(`정말 삭제하시겠습니까?\n(${teamId} - ${compoundKey})`);
+  if (!ok) return;
 
+  const update = {};
+  update[compoundKey] = firebase.firestore.FieldValue.delete();
+
+  await db.collection("hint_views").doc(teamId).update(update);
+  alert("삭제 완료!");
+  loadHintStats();
+}
 // 초기 실행
 document.addEventListener("DOMContentLoaded", () => {
   loadFactories();
