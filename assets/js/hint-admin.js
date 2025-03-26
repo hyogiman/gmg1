@@ -181,16 +181,16 @@ async function loadHintStats() {
   table.innerHTML = html;
 }
 
-// 🧨 dot 필드 삭제 지원
 async function deleteHintView(teamId, compoundKey) {
   const ok = confirm(`정말 삭제하시겠습니까?\n${teamId} - ${compoundKey}`);
   if (!ok) return;
 
   const update = {};
-  update[compoundKey] = firebase.firestore.FieldValue.delete(); // 🔥 dot field도 인식
+  update[compoundKey] = firebase.firestore.FieldValue.delete(); // 문자열 키 그대로 사용
 
   try {
-    await db.collection("hint_views").doc(teamId).set(update, { merge: true }); // ✅ 핵심
+    // ❗ compat에서는 set + merge로 dot 필드 삭제 가능
+    await db.collection("hint_views").doc(teamId).set(update, { merge: true });
     alert("삭제 완료!");
     loadHintStats();
   } catch (err) {
@@ -198,7 +198,6 @@ async function deleteHintView(teamId, compoundKey) {
     alert("삭제 중 오류 발생:\n" + err.message);
   }
 }
-
 // 초기 실행
 document.addEventListener("DOMContentLoaded", () => {
   loadFactories();
