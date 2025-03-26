@@ -207,29 +207,34 @@ async function resetTeam(id) {
   loadTeams();
 }
 
-// === 응답 기록 ===
+// === 응답 기록 (공장 포함) ===
 async function loadAnswerRecords() {
   const answersSnap = await db.collection("answers").get();
   const questionsSnap = await db.collection("questions").get();
 
   const questionMap = {};
   questionsSnap.forEach(doc => {
-    questionMap[doc.id] = doc.data().text;
+    const q = doc.data();
+    questionMap[doc.id] = {
+      text: q.text,
+      factory: q.factory || "N/A"
+    };
   });
 
   const table = document.getElementById("answerTable");
-  let html = "<table><tr><th>팀</th><th>문제</th><th>선택</th><th>비용</th><th>시간</th></tr>";
+  let html = "<table><tr><th>팀</th><th>공장</th><th>문제</th><th>선택</th><th>비용</th><th>시간</th></tr>";
 
   answersSnap.forEach(doc => {
     const teamId = doc.id;
     const records = doc.data().records || [];
     records.forEach(r => {
       const date = new Date(r.time).toLocaleString();
-      const questionText = questionMap[r.questionId] || "문제 없음";
+      const info = questionMap[r.questionId] || {};
       html += `
         <tr>
           <td>${teamId}</td>
-          <td>${questionText}</td>
+          <td>${info.factory || 'N/A'}</td>
+          <td>${info.text || '문제 없음'}</td>
           <td>${r.option}</td>
           <td>${r.cost}</td>
           <td>${date}</td>
