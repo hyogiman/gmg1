@@ -13,7 +13,7 @@
     <div id="loginBox">
       <input type="text" id="teamId" placeholder="팀 ID" />
       <input type="password" id="teamPw" placeholder="비밀번호" />
-      <button onclick="login()">로그인</button>
+      <button id="loginButton" onclick="login()">로그인</button>
       <p id="loginMsg" style="color: red;"></p>
     </div>
 
@@ -29,6 +29,7 @@
     <script src="assets/js/firebase-init.js"></script>
 
     <script>
+
       const db = firebase.firestore();
       let currentTeamId = null;
       let countdownInterval;
@@ -37,7 +38,7 @@
         const id = document.getElementById("teamId").value.trim();
         const pw = document.getElementById("teamPw").value.trim();
         const msg = document.getElementById("loginMsg");
-
+        document.getElementById("loginButton").addEventListener("click", login);
         if (!id || !pw) return msg.innerText = "ID와 비밀번호를 입력하세요.";
 
         try {
