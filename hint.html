@@ -10,17 +10,14 @@
   <div class="container">
     <h1>🔐 힌트 페이지</h1>
 
-    <!-- 로그인 영역 -->
     <div id="loginBox">
       <input type="text" id="teamId" placeholder="팀 ID" />
       <input type="password" id="teamPw" placeholder="비밀번호" />
       <button id="loginButton">로그인</button>
       <p id="loginMsg" style="color: red;"></p>
+      <button onclick="localStorage.removeItem('hintUser'); localStorage.removeItem('hintCache'); location.reload();">[개발용] 로그인 리셋</button>
     </div>
-    //시작시에는 지우기!
-    <button onclick="localStorage.removeItem('hintUser'); location.reload();">[개발용] 로그인 리셋</button>
-    // 요 위에꺼 시작시에는 지우기!
-    <!-- 힌트 출력 영역 -->
+
     <div id="hintSection" style="display:none;">
       <h2 id="factoryName">공장명</h2>
       <img id="hintImage" style="max-width:100%; display:none;" />
@@ -29,7 +26,7 @@
     </div>
   </div>
 
-  <!-- Firebase SDK -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
@@ -68,40 +65,59 @@
     }
 
     async function showHint() {
-      const factoryCode = prompt("공장 코드를 입력하세요 (4자리):");
-      const factories = await db.collection("factories").get();
-      let factoryName = null;
-
-      factories.forEach(doc => {
-        if (doc.data().code === factoryCode) factoryName = doc.id;
-      });
-
-      if (!factoryName) {
-        alert("코드가 유효하지 않습니다.");
+      // 🔐 중앙 제어 확인
+      const configDoc = await db.collection("config").doc("program").get();
+      if (!configDoc.exists || !configDoc.data().started) {
+        alert("현재 힌트 열람이 중지되어 있습니다.");
         return;
       }
 
-      const hintDocs = await db.collection("hints").doc(factoryName).collection("items").get();
+      // 힌트 캐시 확인
+      const cached = localStorage.getItem("hintCache");
+      let factoryName, hintId, hint;
+
+      if (cached) {
+        const cache = JSON.parse(cached);
+        factoryName = cache.factoryName;
+        hintId = cache.hintId;
+        hint = (await db.collection("hints").doc(factoryName).collection("items").doc(hintId).get()).data();
+      } else {
+        const factoryCode = prompt("공장 코드를 입력하세요 (4자리):");
+        const factories = await db.collection("factories").get();
+        factories.forEach(doc => {
+          if (doc.data().code === factoryCode) factoryName = doc.id;
+        });
+
+        if (!factoryName) {
+          alert("코드가 유효하지 않습니다.");
+          return;
+        }
+
+        const hintDocs = await db.collection("hints").doc(factoryName).collection("items").get();
+        const viewDoc = await db.collection("hint_views").doc(currentTeamId).get();
+        const viewed = viewDoc.exists ? (viewDoc.data()[factoryName] || {}) : {};
+        const unviewed = hintDocs.docs.filter(doc => !viewed[doc.id]);
+
+        if (unviewed.length === 0) {
+          alert("모든 힌트를 이미 열람했습니다.");
+          return;
+        }
+
+        const selected = unviewed[Math.floor(Math.random() * unviewed.length)];
+        hintId = selected.id;
+        hint = selected.data();
+
+        // 캐시 저장
+        localStorage.setItem("hintCache", JSON.stringify({ factoryName, hintId }));
+      }
+
       const viewDoc = await db.collection("hint_views").doc(currentTeamId).get();
       const viewed = viewDoc.exists ? (viewDoc.data()[factoryName] || {}) : {};
-
-      const unviewed = hintDocs.docs.filter(doc => !viewed[doc.id]);
-      if (unviewed.length === 0) {
-        alert("모든 힌트를 이미 열람했습니다.");
-        return;
-      }
-
-      const selected = unviewed[Math.floor(Math.random() * unviewed.length)];
-      const hint = selected.data();
-      const hintId = selected.id;
-
       let startTime;
 
       if (viewed[hintId]?.startTime) {
-        // 이미 기록된 startTime 존재
         startTime = viewed[hintId].startTime;
       } else {
-        // 처음 열람: startTime 새로 저장
         startTime = Date.now();
         const update = {
           [`${factoryName}.${hintId}`]: {
@@ -121,7 +137,6 @@
         return;
       }
 
-      // 힌트 표시
       document.getElementById("hintSection").style.display = "block";
       document.getElementById("factoryName").innerText = factoryName + " 힌트";
       document.getElementById("hintText").innerText = hint.text || "";
