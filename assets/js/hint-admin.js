@@ -187,11 +187,10 @@ async function deleteHintView(teamId, compoundKey) {
   if (!ok) return;
 
   const update = {};
-  const fieldPath = firebase.firestore.FieldPath.fromDotSeparatedString(compoundKey);
-  update[fieldPath] = firebase.firestore.FieldValue.delete();
+  update[compoundKey] = firebase.firestore.FieldValue.delete(); // 🔥 dot field도 인식
 
   try {
-    await db.collection("hint_views").doc(teamId).update(update);
+    await db.collection("hint_views").doc(teamId).set(update, { merge: true }); // ✅ 핵심
     alert("삭제 완료!");
     loadHintStats();
   } catch (err) {
