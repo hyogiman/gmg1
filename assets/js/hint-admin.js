@@ -134,7 +134,7 @@ async function toggleHintTimer() {
   document.getElementById("hintTimerStatus").innerText = enabled ? "활성화됨" : "비활성화됨";
 }
 
-// 📊 힌트 열람 통계 (삭제 가능)
+// 📊 힌트 열람 통계 출력
 async function loadHintStats() {
   const table = document.getElementById("hintStatsTable");
   table.innerHTML = "<p>불러오는 중...</p>";
@@ -171,7 +171,7 @@ async function loadHintStats() {
           <td>${factoryId}</td>
           <td>${hintText}</td>
           <td>${time}</td>
-          <td><button onclick="deleteHintView('${teamId}', '${compoundKey}')">삭제</button></td>
+          <td><button class="delete-btn" onclick="deleteHintView('${teamId}', '${compoundKey}')">삭제</button></td>
         </tr>
       `;
     }
@@ -181,17 +181,23 @@ async function loadHintStats() {
   table.innerHTML = html;
 }
 
-// 🔥 열람 기록 삭제 (필드만 제거)
+// 🧨 dot 필드 삭제 지원
 async function deleteHintView(teamId, compoundKey) {
   const ok = confirm(`정말 삭제하시겠습니까?\n${teamId} - ${compoundKey}`);
   if (!ok) return;
 
   const update = {};
-  update[compoundKey] = firebase.firestore.FieldValue.delete();
+  const fieldPath = firebase.firestore.FieldPath.fromDotSeparatedString(compoundKey);
+  update[fieldPath] = firebase.firestore.FieldValue.delete();
 
-  await db.collection("hint_views").doc(teamId).update(update);
-  alert("삭제 완료!");
-  loadHintStats();
+  try {
+    await db.collection("hint_views").doc(teamId).update(update);
+    alert("삭제 완료!");
+    loadHintStats();
+  } catch (err) {
+    console.error("🔥 삭제 실패:", err);
+    alert("삭제 중 오류 발생:\n" + err.message);
+  }
 }
 
 // 초기 실행
