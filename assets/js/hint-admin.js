@@ -134,23 +134,49 @@ async function toggleHintTimer() {
   document.getElementById("hintTimerStatus").innerText = enabled ? "활성화됨" : "비활성화됨";
 }
 
-// 📊 팀별 힌트 열람 통계 출력
+// 📊 팀별 힌트 열람 통계 출력 (강화버전)
 async function loadHintStats() {
   const table = document.getElementById("hintStatsTable");
   table.innerHTML = "<p>불러오는 중...</p>";
 
   const snap = await db.collection("hint_views").get();
-  let html = "<table><tr><th>팀 ID</th><th>공장</th><th>힌트 ID</th></tr>";
+  let html = "<table><tr><th>팀 ID</th><th>공장</th><th>힌트 내용</th><th>열람 시간</th></tr>";
 
-  snap.forEach(doc => {
+  for (const doc of snap.docs) {
     const teamId = doc.id;
     const data = doc.data();
-    for (let factory in data) {
-      for (let hintId in data[factory]) {
-        html += `<tr><td>${teamId}</td><td>${factory}</td><td>${hintId}</td></tr>`;
+
+    for (let compoundKey in data) {
+      const [factoryId, hintId] = compoundKey.split(".");
+      const viewData = data[compoundKey];
+
+      // 🔍 힌트 본문 불러오기
+      let hintText = "(불러오기 실패)";
+      try {
+        const hintDoc = await db.collection("hints")
+          .doc(factoryId)
+          .collection("items")
+          .doc(hintId)
+          .get();
+
+        hintText = hintDoc.exists ? hintDoc.data().text.slice(0, 30) + "..." : "(없음)";
+      } catch (err) {
+        console.warn("힌트 로딩 실패:", factoryId, hintId);
       }
+
+      // 📅 시간 표시
+      const time = new Date(viewData.startTime || 0).toLocaleString("ko-KR");
+
+      html += `
+        <tr>
+          <td>${teamId}</td>
+          <td>${factoryId}</td>
+          <td>${hintText}</td>
+          <td>${time}</td>
+        </tr>
+      `;
     }
-  });
+  }
 
   html += "</table>";
   table.innerHTML = html;
