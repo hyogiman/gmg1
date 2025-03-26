@@ -2,152 +2,52 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>힌트 관리자 (다중 관리)</title>
+  <title>힌트 관리자</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
   <div class="container">
-    <h1>🛠️ 힌트 관리자 (다중 힌트 관리)</h1>
+    <h1>🛠️ 힌트 관리자 페이지</h1>
 
+    <!-- 공장 선택 -->
     <label>공장 선택:</label>
     <select id="factorySelector" onchange="loadHintList()"></select>
 
-    <hr>
-
-    <h2>📋 등록된 힌트 목록</h2>
+    <!-- 힌트 목록 -->
+    <h2>📋 힌트 목록</h2>
     <ul id="hintList"></ul>
 
-    <hr>
-
+    <!-- 힌트 입력 -->
     <h2 id="editTitle">➕ 새 힌트 등록</h2>
-    <label>힌트 텍스트:</label>
-    <textarea id="hintText" rows="4" placeholder="힌트 내용을 입력하세요"></textarea>
-
-    <label>힌트 이미지 업로드:</label>
+    <textarea id="hintText" placeholder="힌트 내용을 입력하세요"></textarea>
     <input type="file" id="hintImage" accept="image/*" />
-    <img id="previewImage" style="max-width: 200px; display:none; margin-top:10px;" />
-
+    <img id="previewImage" style="max-width:200px; display:none;" />
+    <input type="number" id="timeLimit" placeholder="제한시간(초)" />
     <button onclick="saveHint()">저장</button>
-    <button onclick="resetForm()" style="background:#ccc; color:#000;">초기화</button>
+    <button onclick="resetForm()">초기화</button>
+
+    <hr/>
+
+    <!-- 타이머 토글 -->
+    <h2>⏱️ 힌트 타이머 설정</h2>
+    <label class="switch">
+      <input type="checkbox" id="hintTimerSwitch" onchange="toggleHintTimer()">
+      <span class="slider"></span>
+    </label>
+    <span id="hintTimerStatus">로딩 중...</span>
+
+    <hr/>
+
+    <!-- 팀별 통계 -->
+    <h2>📊 팀별 힌트 열람 통계</h2>
+    <button onclick="loadHintStats()">통계 불러오기</button>
+    <div id="hintStatsTable"></div>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
-  <script>
-    let factories = [];
-    let currentFactory = null;
-    let editingHintId = null;
-
-    async function loadFactories() {
-      const snap = await db.collection("factories").get();
-      const selector = document.getElementById("factorySelector");
-      selector.innerHTML = "<option value=''>-- 공장 선택 --</option>";
-      snap.forEach(doc => {
-        factories.push(doc.id);
-        selector.innerHTML += `<option value="${doc.id}">${doc.id}</option>`;
-      });
-    }
-
-    async function loadHintList() {
-      currentFactory = document.getElementById("factorySelector").value;
-      const list = document.getElementById("hintList");
-      list.innerHTML = "";
-
-      if (!currentFactory) return;
-
-      const snap = await db.collection("hints").doc(currentFactory).collection("items").get();
-      snap.forEach(doc => {
-        const hint = doc.data();
-        list.innerHTML += `
-          <li>
-            <b>${hint.text?.slice(0, 30) || '[텍스트 없음]'}</b>
-            <button onclick="editHint('${doc.id}')">수정</button>
-            <button onclick="deleteHint('${doc.id}')">삭제</button>
-          </li>`;
-      });
-    }
-
-    async function editHint(id) {
-      editingHintId = id;
-      document.getElementById("editTitle").innerText = "✏️ 힌트 수정";
-      const doc = await db.collection("hints").doc(currentFactory).collection("items").doc(id).get();
-      const data = doc.data();
-      document.getElementById("hintText").value = data.text || "";
-      if (data.image) {
-        document.getElementById("previewImage").src = data.image;
-        document.getElementById("previewImage").style.display = "block";
-      }
-    }
-    async function deleteHint(id) {
-      const confirmDelete = confirm("해당 힌트를 삭제하시겠습니까?");
-      if (confirmDelete) {
-        await db.collection("hints").doc(currentFactory).collection("items").doc(id).delete();
-        loadHintList();
-        resetForm();
-      }
-    }
-
-    async function saveHint() {
-      if (!currentFactory) return alert("공장을 먼저 선택하세요.");
-      const text = document.getElementById("hintText").value.trim();
-      const file = document.getElementById("hintImage").files[0];
-      let imageData = null;
-
-      if (file) {
-        imageData = await toBase64(file);
-      } else {
-        const current = document.getElementById("previewImage").src;
-        if (current && current.startsWith("data:")) {
-          imageData = current;
-        }
-      }
-
-      const hintData = { text, image: imageData };
-
-      const collectionRef = db.collection("hints").doc(currentFactory).collection("items");
-      if (editingHintId) {
-        await collectionRef.doc(editingHintId).set(hintData);
-        alert("힌트가 수정되었습니다.");
-      } else {
-        await collectionRef.add(hintData);
-        alert("힌트가 추가되었습니다.");
-      }
-
-      loadHintList();
-      resetForm();
-    }
-
-    function resetForm() {
-      editingHintId = null;
-      document.getElementById("editTitle").innerText = "➕ 새 힌트 등록";
-      document.getElementById("hintText").value = "";
-      document.getElementById("hintImage").value = "";
-      document.getElementById("previewImage").style.display = "none";
-    }
-
-    function toBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = e => resolve(e.target.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
-
-    document.getElementById("hintImage").addEventListener("change", e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = evt => {
-        document.getElementById("previewImage").src = evt.target.result;
-        document.getElementById("previewImage").style.display = "block";
-      };
-      reader.readAsDataURL(file);
-    });
-
-    document.addEventListener("DOMContentLoaded", loadFactories);
-  </script>
+  <script src="assets/js/hint-admin.js"></script>
 </body>
 </html>
