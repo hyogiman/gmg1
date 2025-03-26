@@ -15,7 +15,7 @@
       <input type="password" id="teamPw" placeholder="비밀번호" />
       <button id="loginButton">로그인</button>
       <p id="loginMsg" style="color: red;"></p>
-      <button onclick="resetSession()">[개발용] 로그인/캐시 리셋</button>
+      <button onclick="resetSession()">[개발용] 로그인/세션 리셋</button>
     </div>
 
     <div id="hintSection" style="display:none;">
@@ -43,7 +43,6 @@
 
     function resetSession() {
       localStorage.removeItem("hintUser");
-      localStorage.removeItem("hintCache");
       location.reload();
     }
 
@@ -76,50 +75,54 @@
     }
 
     async function showHint() {
-      // 🔐 중앙 제어 검사 → config/global.open
+      // 🔐 중앙 제어 확인
       const configDoc = await db.collection("config").doc("global").get();
       if (!configDoc.exists || !configDoc.data().open) {
-        localStorage.removeItem("hintCache");
         document.getElementById("hintSection").style.display = "none";
         document.getElementById("loginBox").style.display = "none";
         document.getElementById("blockMsg").style.display = "block";
         return;
       }
 
-      const cached = localStorage.getItem("hintCache");
-      let factoryName, hintId, hint;
+      const factoryCode = prompt("공장 코드를 입력하세요 (4자리):");
+      const factories = await db.collection("factories").get();
+      let factoryName = null;
 
-      if (cached) {
-        const cache = JSON.parse(cached);
-        factoryName = cache.factoryName;
-        hintId = cache.hintId;
+      factories.forEach(doc => {
+        if (doc.data().code === factoryCode) factoryName = doc.id;
+      });
 
-        try {
-          const hintSnap = await db.collection("hints").doc(factoryName).collection("items").doc(hintId).get();
-          if (!hintSnap.exists) throw new Error("힌트 없음");
-          hint = hintSnap.data();
-        } catch (err) {
-          alert("힌트를 불러올 수 없습니다.");
-          localStorage.removeItem("hintCache");
+      if (!factoryName) {
+        alert("코드가 유효하지 않습니다.");
+        return;
+      }
+
+      const hintDocs = await db.collection("hints").doc(factoryName).collection("items").get();
+      const viewDoc = await db.collection("hint_views").doc(currentTeamId).get();
+      const viewedData = viewDoc.exists ? viewDoc.data() : {};
+
+      // 🔍 기존에 열람한 힌트 있는지 검사
+      const previouslyViewedKey = Object.keys(viewedData).find(key => key.startsWith(factoryName + "."));
+
+      let hintId, hint, startTime;
+
+      if (previouslyViewedKey) {
+        // ✅ 이미 열람한 힌트가 있음 → 그걸 다시 보여줌
+        hintId = previouslyViewedKey.split(".")[1];
+        const hintSnap = await db.collection("hints").doc(factoryName).collection("items").doc(hintId).get();
+        if (!hintSnap.exists) {
+          alert("기존 힌트를 불러올 수 없습니다.");
           return;
         }
+        hint = hintSnap.data();
+        startTime = viewedData[previouslyViewedKey].startTime;
       } else {
-        const factoryCode = prompt("공장 코드를 입력하세요 (4자리):");
-        const factories = await db.collection("factories").get();
-        factories.forEach(doc => {
-          if (doc.data().code === factoryCode) factoryName = doc.id;
-        });
+        // 🆕 새로운 힌트 선택
+        const viewedHintIds = Object.keys(viewedData)
+          .filter(key => key.startsWith(factoryName + "."))
+          .map(key => key.split(".")[1]);
 
-        if (!factoryName) {
-          alert("코드가 유효하지 않습니다.");
-          return;
-        }
-
-        const hintDocs = await db.collection("hints").doc(factoryName).collection("items").get();
-        const viewDoc = await db.collection("hint_views").doc(currentTeamId).get();
-        const viewed = viewDoc.exists ? (viewDoc.data()[factoryName] || {}) : {};
-        const unviewed = hintDocs.docs.filter(doc => !viewed[doc.id]);
-
+        const unviewed = hintDocs.docs.filter(doc => !viewedHintIds.includes(doc.id));
         if (unviewed.length === 0) {
           alert("모든 힌트를 이미 열람했습니다.");
           return;
@@ -128,18 +131,9 @@
         const selected = unviewed[Math.floor(Math.random() * unviewed.length)];
         hintId = selected.id;
         hint = selected.data();
-
-        localStorage.setItem("hintCache", JSON.stringify({ factoryName, hintId }));
-      }
-
-      const viewDoc = await db.collection("hint_views").doc(currentTeamId).get();
-      const viewed = viewDoc.exists ? (viewDoc.data()[factoryName] || {}) : {};
-      let startTime;
-
-      if (viewed[hintId]?.startTime) {
-        startTime = viewed[hintId].startTime;
-      } else {
         startTime = Date.now();
+
+        // 🔐 바로 Firestore에 기록
         const update = {
           [`${factoryName}.${hintId}`]: {
             viewed: true,
@@ -158,6 +152,7 @@
         return;
       }
 
+      // ✅ 힌트 출력
       document.getElementById("hintSection").style.display = "block";
       document.getElementById("factoryName").innerText = factoryName + " 힌트";
       document.getElementById("hintText").innerText = hint.text || "";
