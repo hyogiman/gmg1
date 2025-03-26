@@ -10,135 +10,147 @@
   <div class="container">
     <h1>🔐 힌트 페이지</h1>
 
+    <!-- 로그인 영역 -->
     <div id="loginBox">
       <input type="text" id="teamId" placeholder="팀 ID" />
       <input type="password" id="teamPw" placeholder="비밀번호" />
-      <button id="loginButton" onclick="login()">로그인</button>
+      <button id="loginButton">로그인</button>
       <p id="loginMsg" style="color: red;"></p>
     </div>
 
+    <!-- 힌트 출력 영역 -->
     <div id="hintSection" style="display:none;">
       <h2 id="factoryName">공장명</h2>
       <img id="hintImage" style="max-width:100%; display:none;" />
       <p id="hintText"></p>
       <p><strong>남은 시간:</strong> <span id="countdown" style="color:red; font-weight:bold;"></span></p>
     </div>
+  </div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-    <script src="assets/js/firebase-init.js"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script src="assets/js/firebase-init.js"></script>
 
-    <script>
+  <script>
+    const db = firebase.firestore();
+    let currentTeamId = null;
+    let countdownInterval;
+    let remainingSeconds = 0;
 
-      const db = firebase.firestore();
-      let currentTeamId = null;
-      let countdownInterval;
-      let remainingSeconds = 0;
-      async function login() {
-        const id = document.getElementById("teamId").value.trim();
-        const pw = document.getElementById("teamPw").value.trim();
-        const msg = document.getElementById("loginMsg");
-        document.getElementById("loginButton").addEventListener("click", login);
-        if (!id || !pw) return msg.innerText = "ID와 비밀번호를 입력하세요.";
+    async function login() {
+      const id = document.getElementById("teamId").value.trim();
+      const pw = document.getElementById("teamPw").value.trim();
+      const msg = document.getElementById("loginMsg");
 
-        try {
-          const teamDoc = await db.collection("teams").doc(id).get();
-          if (!teamDoc.exists || teamDoc.data().password !== pw) {
-            msg.innerText = "로그인 실패: 잘못된 정보입니다.";
-            return;
-          }
-
-          currentTeamId = id;
-          localStorage.setItem("hintUser", id);
-          msg.innerText = "";
-          document.getElementById("loginBox").style.display = "none";
-          showHint();
-        } catch (err) {
-          console.error("로그인 오류:", err);
-          msg.innerText = "로그인 중 오류가 발생했습니다.";
-        }
+      if (!id || !pw) {
+        msg.innerText = "ID와 비밀번호를 입력하세요.";
+        return;
       }
 
-      async function showHint() {
-        const factoryCode = prompt("공장 코드를 입력하세요 (4자리):");
-        const factories = await db.collection("factories").get();
-        let factoryName = null;
-
-        factories.forEach(doc => {
-          if (doc.data().code === factoryCode) factoryName = doc.id;
-        });
-
-        if (!factoryName) return alert("코드가 유효하지 않습니다.");
-
-        const hintDocs = await db.collection("hints").doc(factoryName).collection("items").get();
-        const viewDoc = await db.collection("hint_views").doc(currentTeamId).get();
-        const viewed = viewDoc.exists ? (viewDoc.data()[factoryName] || {}) : {};
-
-        const unviewed = hintDocs.docs.filter(doc => !viewed[doc.id]);
-        if (unviewed.length === 0) {
-          alert("모든 힌트를 이미 열람했습니다.");
+      try {
+        const teamDoc = await db.collection("teams").doc(id).get();
+        if (!teamDoc.exists || teamDoc.data().password !== pw) {
+          msg.innerText = "로그인 실패: 잘못된 정보입니다.";
           return;
         }
 
-        const selected = unviewed[Math.floor(Math.random() * unviewed.length)];
-        const hint = selected.data();
-        const hintId = selected.id;
+        currentTeamId = id;
+        localStorage.setItem("hintUser", id);
+        msg.innerText = "";
+        document.getElementById("loginBox").style.display = "none";
+        showHint();
+      } catch (err) {
+        console.error("로그인 오류:", err);
+        msg.innerText = "로그인 중 오류가 발생했습니다.";
+      }
+    }
 
-        const startTime = viewed[hintId]?.startTime || Date.now();
-        const timeLimit = hint.timeLimit || 60;
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        remainingSeconds = timeLimit - elapsed;
+    async function showHint() {
+      const factoryCode = prompt("공장 코드를 입력하세요 (4자리):");
+      const factories = await db.collection("factories").get();
+      let factoryName = null;
 
-        if (remainingSeconds <= 0) {
-          alert("이 힌트의 열람 시간이 종료되었습니다.");
-          return;
-        }
+      factories.forEach(doc => {
+        if (doc.data().code === factoryCode) factoryName = doc.id;
+      });
 
-        const update = {
-          [`${factoryName}.${hintId}`]: {
-            viewed: true,
-            startTime
-          }
-        };
-        await db.collection("hint_views").doc(currentTeamId).set(update, { merge: true });
-
-        document.getElementById("hintSection").style.display = "block";
-        document.getElementById("factoryName").innerText = factoryName + " 힌트";
-        document.getElementById("hintText").innerText = hint.text || "";
-
-        if (hint.image) {
-          const img = document.getElementById("hintImage");
-          img.src = hint.image;
-          img.style.display = "block";
-        }
-
-        startCountdown();
+      if (!factoryName) {
+        alert("코드가 유효하지 않습니다.");
+        return;
       }
 
-      function startCountdown() {
-        const counter = document.getElementById("countdown");
-        counter.innerText = `${remainingSeconds}초`;
+      const hintDocs = await db.collection("hints").doc(factoryName).collection("items").get();
+      const viewDoc = await db.collection("hint_views").doc(currentTeamId).get();
+      const viewed = viewDoc.exists ? (viewDoc.data()[factoryName] || {}) : {};
 
-        countdownInterval = setInterval(() => {
-          remainingSeconds--;
-          if (remainingSeconds <= 0) {
-            clearInterval(countdownInterval);
-            document.getElementById("hintSection").style.display = "none";
-            alert("시간이 종료되었습니다.");
-          } else {
-            counter.innerText = `${remainingSeconds}초`;
-          }
-        }, 1000);
+      const unviewed = hintDocs.docs.filter(doc => !viewed[doc.id]);
+      if (unviewed.length === 0) {
+        alert("모든 힌트를 이미 열람했습니다.");
+        return;
       }
 
-      window.onload = () => {
-        const savedId = localStorage.getItem("hintUser");
-        if (savedId) {
-          currentTeamId = savedId;
-          document.getElementById("loginBox").style.display = "none";
-          showHint();
+      const selected = unviewed[Math.floor(Math.random() * unviewed.length)];
+      const hint = selected.data();
+      const hintId = selected.id;
+
+      const startTime = viewed[hintId]?.startTime || Date.now();
+      const timeLimit = hint.timeLimit || 60;
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      remainingSeconds = timeLimit - elapsed;
+
+      if (remainingSeconds <= 0) {
+        alert("이 힌트의 열람 시간이 종료되었습니다.");
+        return;
+      }
+
+      const update = {
+        [`${factoryName}.${hintId}`]: {
+          viewed: true,
+          startTime
         }
       };
-    </script>
-  </body>
+      await db.collection("hint_views").doc(currentTeamId).set(update, { merge: true });
+
+      document.getElementById("hintSection").style.display = "block";
+      document.getElementById("factoryName").innerText = factoryName + " 힌트";
+      document.getElementById("hintText").innerText = hint.text || "";
+
+      if (hint.image) {
+        const img = document.getElementById("hintImage");
+        img.src = hint.image;
+        img.style.display = "block";
+      }
+
+      startCountdown();
+    }
+
+    function startCountdown() {
+      const counter = document.getElementById("countdown");
+      counter.innerText = `${remainingSeconds}초`;
+
+      countdownInterval = setInterval(() => {
+        remainingSeconds--;
+        if (remainingSeconds <= 0) {
+          clearInterval(countdownInterval);
+          document.getElementById("hintSection").style.display = "none";
+          alert("시간이 종료되었습니다.");
+        } else {
+          counter.innerText = `${remainingSeconds}초`;
+        }
+      }, 1000);
+    }
+
+    window.onload = () => {
+      const savedId = localStorage.getItem("hintUser");
+      if (savedId) {
+        currentTeamId = savedId;
+        document.getElementById("loginBox").style.display = "none";
+        showHint();
+      }
+
+      document.getElementById("loginButton").addEventListener("click", login);
+    };
+  </script>
+</body>
 </html>
