@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hint2 - 힌트 코드 입력</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .hint-box {
+      border: 1px solid #ccc;
+      padding: 16px;
+      margin-top: 20px;
+      text-align: center;
+    }
+    .timer {
+      font-size: 24px;
+      margin-top: 10px;
+      color: red;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>힌트 코드 입력</h1>
+    <div id="login-section">
+      <input type="text" id="teamId" placeholder="팀 ID를 입력하세요" />
+      <button onclick="login()">로그인</button>
+    </div>
+
+    <div id="input-section" style="display: none;">
+      <input type="text" id="hintCodeInput" placeholder="힌트 코드를 입력하세요" />
+      <button onclick="submitCode()">확인</button>
+    </div>
+
+    <div id="hint-section" class="hint-box" style="display: none;">
+      <div id="hintText"></div>
+      <img id="hintImage" src="" alt="" style="max-width: 100%; display: none;" />
+      <div id="hintTimer" class="timer"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      // your firebase config
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let currentTeamId = null;
+
+    function login() {
+      const teamInput = document.getElementById("teamId").value.trim();
+      if (!teamInput) return alert("팀 ID를 입력하세요.");
+      currentTeamId = teamInput;
+
+      document.getElementById("login-section").style.display = "none";
+      document.getElementById("input-section").style.display = "block";
+    }
+
+    async function submitCode() {
+      const code = document.getElementById("hintCodeInput").value.trim().toUpperCase();
+      if (!code) return alert("코드를 입력하세요.");
+
+      const viewRef = doc(db, `code_hint_views/${currentTeamId}`);
+      const viewSnap = await getDoc(viewRef);
+      const views = viewSnap.exists() ? viewSnap.data() : {};
+
+      if (views[code]?.viewed) {
+        return alert("이미 본 힌트입니다.");
+      }
+
+      const hintRef = doc(db, `codeHints/${code}`);
+      const hintSnap = await getDoc(hintRef);
+
+      if (!hintSnap.exists()) {
+        return alert("존재하지 않는 코드입니다.");
+      }
+
+      const hint = hintSnap.data();
+      document.getElementById("hintText").innerText = hint.text || "";
+      if (hint.imageUrl) {
+        const img = document.getElementById("hintImage");
+        img.src = hint.imageUrl;
+        img.style.display = "block";
+      }
+
+      document.getElementById("hint-section").style.display = "block";
+
+      // 기록 저장
+      await updateDoc(viewRef, {
+        [code]: {
+          viewed: true,
+          startTime: serverTimestamp()
+        }
+      }).catch(async () => {
+        // 문서가 없으면 새로 생성
+        await setDoc(viewRef, {
+          [code]: {
+            viewed: true,
+            startTime: serverTimestamp()
+          }
+        });
+      });
+
+      // 전역 설정 체크
+      const configRef = doc(db, "config/hintTimer");
+      const configSnap = await getDoc(configRef);
+      const hintTimerEnabled = configSnap.exists() && configSnap.data().enabled;
+
+      if (hintTimerEnabled) {
+        let duration = parseInt(hint.duration) || 30;
+        const timerDiv = document.getElementById("hintTimer");
+        timerDiv.innerText = `${duration}초 남음`;
+
+        const countdown = setInterval(() => {
+          duration--;
+          if (duration <= 0) {
+            clearInterval(countdown);
+            alert("힌트 노출이 끝났습니다.");
+            resetView();
+          } else {
+            timerDiv.innerText = `${duration}초 남음`;
+          }
+        }, 1000);
+      }
+    }
+
+    function resetView() {
+      document.getElementById("hintText").innerText = "";
+      document.getElementById("hintImage").style.display = "none";
+      document.getElementById("hintImage").src = "";
+      document.getElementById("hint-section").style.display = "none";
+      document.getElementById("hintTimer").innerText = "";
+      document.getElementById("hintCodeInput").value = "";
+    }
+  </script>
+</body>
+</html>
