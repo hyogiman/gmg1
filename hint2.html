@@ -14,7 +14,7 @@
     }
     .timer {
       font-size: 24px;
-      margin-top: 10px;
+      margin-bottom: 10px;
       color: red;
       animation: pulse 1s infinite;
     }
@@ -22,6 +22,11 @@
       0% { opacity: 1; }
       50% { opacity: 0.5; }
       100% { opacity: 1; }
+    }
+    .block-msg {
+      text-align: center;
+      margin-top: 40px;
+      color: red;
     }
   </style>
 </head>
@@ -36,26 +41,32 @@
       <button onclick="login()">로그인</button>
     </div>
 
+    <!-- 차단 메시지 -->
+    <div id="block-section" class="block-msg" style="display: none;">
+      <h2>🚫 아직 프로그램이 시작되지 않았습니다.<br>교육담당자에게 문의하세요.</h2>
+    </div>
+
     <!-- 힌트 코드 입력 -->
     <div id="input-section" style="display: none;">
       <input type="text" id="hintCodeInput" placeholder="힌트 코드를 입력하세요" />
       <button onclick="submitCode()">확인</button>
     </div>
 
-    <!-- 힌트 표시 -->
+    <!-- 힌트 출력 -->
     <div id="hint-section" class="hint-box" style="display: none;">
+      <div id="hintTimer" class="timer"></div>
       <div id="hintText"></div>
       <img id="hintImage" src="" alt="" style="max-width: 100%; display: none;" />
-      <div id="hintTimer" class="timer"></div>
+      <br>
+      <button onclick="goBackToLogin()">확인</button>
     </div>
   </div>
 
-  <!-- ✅ Firebase compat SDK -->
+  <!-- Firebase compat SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 
   <script>
-    // ✅ Firebase 설정
     const firebaseConfig = {
       apiKey: "AIzaSyCCxRR6hXvk9Z17eK8H_Vov_TbGX8LzvDs",
       authDomain: "factory-sim01v.firebaseapp.com",
@@ -64,42 +75,40 @@
       messagingSenderId: "818674298880",
       appId: "1:818674298880:web:95307171220da8bd8d28e5"
     };
-
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
     let currentTeamId = null;
 
-    // ✅ 로그인
     function login() {
       const teamInput = document.getElementById("teamId").value.trim();
       const pwInput = document.getElementById("teamPw").value.trim();
-
-      if (!teamInput || !pwInput) {
-        alert("팀 ID와 비밀번호를 모두 입력하세요.");
-        return;
-      }
+      if (!teamInput || !pwInput) return alert("팀 ID와 비밀번호를 모두 입력하세요.");
 
       const teamRef = db.collection("teams").doc(teamInput);
-      teamRef.get().then((docSnap) => {
-        if (!docSnap.exists) {
-          alert("존재하지 않는 팀 ID입니다.");
-          return;
-        }
-
+      teamRef.get().then(async (docSnap) => {
+        if (!docSnap.exists) return alert("존재하지 않는 팀 ID입니다.");
         const data = docSnap.data();
-        if (data.password !== pwInput) {
-          alert("비밀번호가 일치하지 않습니다.");
-          return;
-        }
+        if (data.password !== pwInput) return alert("비밀번호가 일치하지 않습니다.");
 
         currentTeamId = teamInput;
+
+        // 🔍 global.open 체크
+        const globalRef = db.collection("config").doc("global");
+        const globalSnap = await globalRef.get();
+        const isOpen = globalSnap.exists && globalSnap.data().open === true;
+
+        if (!isOpen) {
+          document.getElementById("login-section").style.display = "none";
+          document.getElementById("block-section").style.display = "block";
+          return;
+        }
+
         document.getElementById("login-section").style.display = "none";
         document.getElementById("input-section").style.display = "block";
       });
     }
 
-    // ✅ 힌트 코드 제출
     function submitCode() {
       const code = document.getElementById("hintCodeInput").value.trim().toUpperCase();
       if (!code) return alert("코드를 입력하세요.");
@@ -127,23 +136,21 @@
             img.style.display = "block";
           }
 
+          document.getElementById("input-section").style.display = "none";
           document.getElementById("hint-section").style.display = "block";
 
-          // 기록 저장
           const record = {
             [code]: {
               viewed: true,
               startTime: firebase.firestore.FieldValue.serverTimestamp()
             }
           };
-
           if (viewSnap.exists) {
             viewRef.set(record, { merge: true });
           } else {
             viewRef.set(record);
           }
 
-          // 타이머 설정
           db.collection("config").doc("hintTimer").get().then((configSnap) => {
             const hintTimerEnabled = configSnap.exists && configSnap.data().enabled;
             if (hintTimerEnabled) {
@@ -156,7 +163,7 @@
                 if (duration <= 0) {
                   clearInterval(countdown);
                   alert("힌트 노출이 끝났습니다.");
-                  resetView();
+                  goBackToLogin();
                 } else {
                   timerDiv.innerText = `${duration}초 남음`;
                 }
@@ -167,14 +174,18 @@
       });
     }
 
-    // ✅ 뷰 초기화
-    function resetView() {
+    function goBackToLogin() {
       document.getElementById("hintText").innerText = "";
       document.getElementById("hintImage").style.display = "none";
       document.getElementById("hintImage").src = "";
-      document.getElementById("hint-section").style.display = "none";
       document.getElementById("hintTimer").innerText = "";
+      document.getElementById("hint-section").style.display = "none";
+      document.getElementById("input-section").style.display = "none";
+      document.getElementById("block-section").style.display = "none";
+      document.getElementById("teamId").value = "";
+      document.getElementById("teamPw").value = "";
       document.getElementById("hintCodeInput").value = "";
+      document.getElementById("login-section").style.display = "block";
     }
   </script>
 </body>
