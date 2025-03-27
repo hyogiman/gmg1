@@ -28,6 +28,11 @@
       margin-top: 40px;
       color: red;
     }
+    #hintImage {
+      max-width: 100%;
+      margin: 0 auto;
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -56,9 +61,9 @@
     <div id="hint-section" class="hint-box" style="display: none;">
       <div id="hintTimer" class="timer"></div>
       <div id="hintText"></div>
-      <img id="hintImage" src="" alt="" style="max-width: 100%; display: none; align-items:center;" />
+      <img id="hintImage" src="" alt="" />
       <br>
-      <button onclick="goBackToLogin()">확인 완료</button>
+      <button onclick="goBackToLogin()">확인</button>
     </div>
   </div>
 
@@ -93,7 +98,6 @@
 
         currentTeamId = teamInput;
 
-        // 🔍 global.open 체크
         const globalRef = db.collection("config").doc("global");
         const globalSnap = await globalRef.get();
         const isOpen = globalSnap.exists && globalSnap.data().open === true;
@@ -130,10 +134,12 @@
 
           const hint = hintSnap.data();
           document.getElementById("hintText").innerText = hint.text || "";
+          const img = document.getElementById("hintImage");
           if (hint.imageUrl) {
-            const img = document.getElementById("hintImage");
             img.src = hint.imageUrl;
             img.style.display = "block";
+          } else {
+            img.style.display = "none";
           }
 
           document.getElementById("input-section").style.display = "none";
