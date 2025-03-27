@@ -52,7 +52,19 @@
       <button onclick="saveHint()">저장</button>
 
       <h2>📋 힌트 목록</h2>
-      <div id="hintList"></div>
+      <table>
+        <thead>
+          <tr>
+            <th>코드</th>
+            <th>설명</th>
+            <th>노출시간</th>
+            <th>텍스트</th>
+            <th>수정</th>
+            <th>삭제</th>
+          </tr>
+        </thead>
+        <tbody id="hintTableBody"></tbody>
+      </table>
 
       <!-- ✏️ 힌트 수정 영역 -->
       <div id="editBox" style="display:none;">
@@ -130,25 +142,33 @@
 
       await db.doc(`codeHints/${code}`).set({ code, description, duration, text, imageUrl });
       alert("등록 완료!");
+
+      // ✅ 입력창 초기화
+      document.getElementById("code").value = "";
+      document.getElementById("description").value = "";
+      document.getElementById("duration").value = "";
+      document.getElementById("text").value = "";
+      document.getElementById("imageFile").value = "";
+      document.getElementById("preview").style.display = "none";
+
       loadHints();
     }
 
     async function loadHints() {
-      const listDiv = document.getElementById("hintList");
-      listDiv.innerHTML = "";
+      const body = document.getElementById("hintTableBody");
+      body.innerHTML = "";
       const snap = await db.collection("codeHints").get();
       snap.forEach(doc => {
         const h = doc.data();
-        listDiv.innerHTML += `
-          <div>
-            <strong>${h.code}</strong> - ${h.description || ''}<br>
-            ${h.text}<br>
-            ${h.imageUrl ? `<img src="${h.imageUrl}" />` : ""}
-            노출시간: ${h.duration || 0}초<br/>
-            <button onclick="editHint('${h.code}')">수정</button>
-            <button onclick="deleteHint('${h.code}')">삭제</button>
-            <hr/>
-          </div>
+        body.innerHTML += `
+          <tr>
+            <td>${h.code}</td>
+            <td>${h.description || '-'}</td>
+            <td>${h.duration || 0}초</td>
+            <td>${(h.text || '').slice(0, 20)}...</td>
+            <td><button onclick="editHint('${h.code}')">수정</button></td>
+            <td><button class="delete-btn" onclick="deleteHint('${h.code}')">삭제</button></td>
+          </tr>
         `;
       });
     }
