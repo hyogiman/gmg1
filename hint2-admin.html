@@ -72,11 +72,10 @@
     <!-- 열람 기록 탭 -->
     <div id="logTab" class="tab">
       <h2>팀별 힌트 열람 기록</h2>
-      <input type="text" id="teamIdInput" placeholder="팀 ID 입력" />
+      <select id="teamIdSelect"></select>
       <button onclick="loadViews()">조회</button>
       <div id="viewTable"></div>
     </div>
-
   </div>
 
   <!-- Firebase SDK -->
@@ -84,7 +83,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 
   <script>
-    // ✅ Firebase 초기화 먼저!
     const firebaseConfig = {
       apiKey: "AIzaSyCCxRR6hXvk9Z17eK8H_Vov_TbGX8LzvDs",
       authDomain: "factory-sim01v.firebaseapp.com",
@@ -96,16 +94,16 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // ✅ 탭 전환
-    function showTab(id, button) {
+    let editingCode = null;
+
+    function showTab(id, btn) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.getElementById(id).classList.add('active');
 
       document.querySelectorAll('.menu button').forEach(b => b.classList.remove('active'));
-      button.classList.add('active');
+      btn.classList.add('active');
     }
 
-    // ✅ base64 변환
     function toBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -115,7 +113,6 @@
       });
     }
 
-    // ✅ 이미지 프리뷰 처리
     document.getElementById("imageFile").addEventListener("change", async e => {
       const file = e.target.files[0];
       if (!file) return;
@@ -124,7 +121,6 @@
       document.getElementById("preview").style.display = "block";
     });
 
-    // ✅ 힌트 저장
     async function saveHint() {
       const code = document.getElementById("code").value.trim().toUpperCase();
       const description = document.getElementById("description").value.trim();
@@ -132,29 +128,20 @@
       const text = document.getElementById("text").value.trim();
       const imageFile = document.getElementById("imageFile").files[0];
 
-      if (!code || !text) {
-        alert("코드와 텍스트는 필수입니다.");
-        return;
-      }
+      if (!code || !text) return alert("코드와 텍스트는 필수입니다.");
 
       let imageUrl = null;
-      if (imageFile) {
-        imageUrl = await toBase64(imageFile);
-      }
+      if (imageFile) imageUrl = await toBase64(imageFile);
 
       await db.doc(`codeHints/${code}`).set({
-        code,
-        description,
-        duration,
-        text,
-        imageUrl
+        code, description, duration, text, imageUrl
       });
 
-      alert("힌트 저장 완료!");
+      alert(editingCode ? "수정 완료!" : "등록 완료!");
+      editingCode = null;
       loadHints();
     }
 
-    // ✅ 힌트 목록 로딩
     async function loadHints() {
       const listDiv = document.getElementById("hintList");
       listDiv.innerHTML = "";
@@ -167,17 +154,53 @@
             <strong>${h.code}</strong> - ${h.description || ''}<br>
             ${h.text}<br>
             ${h.imageUrl ? `<img src="${h.imageUrl}" />` : ""}
-            노출시간: ${h.duration || 0}초
+            노출시간: ${h.duration || 0}초<br/>
+            <button onclick="editHint('${h.code}')">수정</button>
+            <button onclick="deleteHint('${h.code}')">삭제</button>
             <hr/>
           </div>
         `;
       });
     }
 
-    // ✅ 열람 기록 조회
+    async function editHint(code) {
+      const snap = await db.doc(`codeHints/${code}`).get();
+      if (!snap.exists) return alert("해당 힌트를 찾을 수 없습니다.");
+      const data = snap.data();
+
+      document.getElementById("code").value = data.code || "";
+      document.getElementById("description").value = data.description || "";
+      document.getElementById("duration").value = data.duration || "";
+      document.getElementById("text").value = data.text || "";
+
+      if (data.imageUrl) {
+        document.getElementById("preview").src = data.imageUrl;
+        document.getElementById("preview").style.display = "block";
+      }
+
+      editingCode = code;
+    }
+
+    async function deleteHint(code) {
+      if (!confirm(`[${code}] 힌트를 삭제하시겠습니까?`)) return;
+      await db.doc(`codeHints/${code}`).delete();
+      alert("삭제 완료!");
+      loadHints();
+    }
+
+    async function loadTeamList() {
+      const selector = document.getElementById("teamIdSelect");
+      selector.innerHTML = "<option value=''>-- 팀 선택 --</option>";
+
+      const snap = await db.collection("teams").get();
+      snap.forEach(doc => {
+        selector.innerHTML += `<option value="${doc.id}">${doc.id}</option>`;
+      });
+    }
+
     async function loadViews() {
-      const teamId = document.getElementById("teamIdInput").value.trim();
-      if (!teamId) return alert("팀 ID를 입력하세요.");
+      const teamId = document.getElementById("teamIdSelect").value;
+      if (!teamId) return alert("팀을 선택하세요.");
 
       const ref = db.collection("code_hint_views").doc(teamId);
       const snap = await ref.get();
@@ -209,9 +232,9 @@
       table.innerHTML = html;
     }
 
-    // ✅ 열람 기록 삭제
     async function deleteView(teamId, code) {
-      if (!confirm(`${teamId} - ${code} 기록을 삭제할까요?`)) return;
+      const ok = confirm(`정말 삭제하시겠습니까?\n${teamId} - ${code}`);
+      if (!ok) return;
 
       const update = {};
       update[code] = firebase.firestore.FieldValue.delete();
@@ -221,8 +244,9 @@
       loadViews();
     }
 
-    // ✅ 시작 시 힌트 목록 불러오기
+    // ✅ 초기 로드
     loadHints();
+    loadTeamList();
   </script>
 </body>
 </html>
