@@ -125,14 +125,10 @@
       const file = document.getElementById("imageFile").files[0];
 
       if (!code || !text) return alert("코드와 텍스트는 필수입니다.");
-
       let imageUrl = null;
       if (file) imageUrl = await toBase64(file);
 
-      await db.doc(`codeHints/${code}`).set({
-        code, description, duration, text, imageUrl
-      });
-
+      await db.doc(`codeHints/${code}`).set({ code, description, duration, text, imageUrl });
       alert("등록 완료!");
       loadHints();
     }
@@ -140,7 +136,6 @@
     async function loadHints() {
       const listDiv = document.getElementById("hintList");
       listDiv.innerHTML = "";
-
       const snap = await db.collection("codeHints").get();
       snap.forEach(doc => {
         const h = doc.data();
@@ -182,13 +177,9 @@
       const text = document.getElementById("editText").value.trim();
       const file = document.getElementById("editImageFile").files[0];
       let imageUrl = document.getElementById("editPreview").src;
-
       if (file) imageUrl = await toBase64(file);
 
-      await db.doc(`codeHints/${code}`).set({
-        code, description, duration, text, imageUrl
-      });
-
+      await db.doc(`codeHints/${code}`).set({ code, description, duration, text, imageUrl });
       alert("수정 완료!");
       document.getElementById("editBox").style.display = "none";
       loadHints();
@@ -237,19 +228,33 @@
       }
 
       const data = snap.data();
-      let html = "<table><tr><th>코드</th><th>열람</th><th>시간</th><th>삭제</th></tr>";
+      let html = "<table><tr><th>코드</th><th>설명</th><th>열람</th><th>시간</th><th>삭제</th></tr>";
+
       for (const code in data) {
         const view = data[code];
         const time = view.startTime?.toDate().toLocaleString("ko-KR") || "-";
+
+        let description = "(불러오기 실패)";
+        try {
+          const hintDoc = await db.collection("codeHints").doc(code).get();
+          if (hintDoc.exists) {
+            description = hintDoc.data().description || "-";
+          }
+        } catch (err) {
+          console.warn("설명 로딩 실패:", code);
+        }
+
         html += `
           <tr>
             <td>${code}</td>
+            <td>${description}</td>
             <td>${view.viewed ? "O" : "-"}</td>
             <td>${time}</td>
             <td><button class="delete-btn" onclick="deleteView('${teamId}', '${code}')">삭제</button></td>
           </tr>
         `;
       }
+
       html += "</table>";
       table.innerHTML = html;
     }
