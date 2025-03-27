@@ -29,20 +29,20 @@
   <div class="container">
     <h1>🔐 힌트 코드 입력</h1>
 
-    <!-- 🔐 로그인 -->
+    <!-- 로그인 -->
     <div id="login-section">
       <input type="text" id="teamId" placeholder="팀 ID를 입력하세요" />
       <input type="password" id="teamPw" placeholder="비밀번호를 입력하세요" />
       <button onclick="login()">로그인</button>
     </div>
 
-    <!-- 🔑 힌트 코드 입력 -->
+    <!-- 힌트 코드 입력 -->
     <div id="input-section" style="display: none;">
       <input type="text" id="hintCodeInput" placeholder="힌트 코드를 입력하세요" />
       <button onclick="submitCode()">확인</button>
     </div>
 
-    <!-- 📄 힌트 출력 -->
+    <!-- 힌트 표시 -->
     <div id="hint-section" class="hint-box" style="display: none;">
       <div id="hintText"></div>
       <img id="hintImage" src="" alt="" style="max-width: 100%; display: none;" />
@@ -50,13 +50,12 @@
     </div>
   </div>
 
-  <!-- Firebase SDK (Module 방식) -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-    import {
-      getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp
-    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+  <!-- ✅ Firebase compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 
+  <script>
+    // ✅ Firebase 설정
     const firebaseConfig = {
       apiKey: "AIzaSyCCxRR6hXvk9Z17eK8H_Vov_TbGX8LzvDs",
       authDomain: "factory-sim01v.firebaseapp.com",
@@ -66,13 +65,13 @@
       appId: "1:818674298880:web:95307171220da8bd8d28e5"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
 
     let currentTeamId = null;
 
-    // ✅ 로그인 처리
-    async function login() {
+    // ✅ 로그인
+    function login() {
       const teamInput = document.getElementById("teamId").value.trim();
       const pwInput = document.getElementById("teamPw").value.trim();
 
@@ -81,93 +80,94 @@
         return;
       }
 
-      const teamRef = doc(db, `teams/${teamInput}`);
-      const teamSnap = await getDoc(teamRef);
+      const teamRef = db.collection("teams").doc(teamInput);
+      teamRef.get().then((docSnap) => {
+        if (!docSnap.exists) {
+          alert("존재하지 않는 팀 ID입니다.");
+          return;
+        }
 
-      if (!teamSnap.exists()) {
-        alert("존재하지 않는 팀 ID입니다.");
-        return;
-      }
+        const data = docSnap.data();
+        if (data.password !== pwInput) {
+          alert("비밀번호가 일치하지 않습니다.");
+          return;
+        }
 
-      const teamData = teamSnap.data();
-      if (teamData.password !== pwInput) {
-        alert("비밀번호가 일치하지 않습니다.");
-        return;
-      }
-
-      currentTeamId = teamInput;
-      document.getElementById("login-section").style.display = "none";
-      document.getElementById("input-section").style.display = "block";
+        currentTeamId = teamInput;
+        document.getElementById("login-section").style.display = "none";
+        document.getElementById("input-section").style.display = "block";
+      });
     }
 
     // ✅ 힌트 코드 제출
-    async function submitCode() {
+    function submitCode() {
       const code = document.getElementById("hintCodeInput").value.trim().toUpperCase();
       if (!code) return alert("코드를 입력하세요.");
 
-      const viewRef = doc(db, `code_hint_views/${currentTeamId}`);
-      const viewSnap = await getDoc(viewRef);
-      const views = viewSnap.exists() ? viewSnap.data() : {};
-
-      if (views[code]?.viewed) {
-        return alert("이미 본 힌트입니다.");
-      }
-
-      const hintRef = doc(db, `codeHints/${code}`);
-      const hintSnap = await getDoc(hintRef);
-
-      if (!hintSnap.exists()) {
-        return alert("존재하지 않는 코드입니다.");
-      }
-
-      const hint = hintSnap.data();
-      document.getElementById("hintText").innerText = hint.text || "";
-      if (hint.imageUrl) {
-        const img = document.getElementById("hintImage");
-        img.src = hint.imageUrl;
-        img.style.display = "block";
-      }
-
-      document.getElementById("hint-section").style.display = "block";
-
-      // 열람 기록 저장
-      const record = {
-        [code]: {
-          viewed: true,
-          startTime: serverTimestamp()
+      const viewRef = db.collection("code_hint_views").doc(currentTeamId);
+      viewRef.get().then((viewSnap) => {
+        const views = viewSnap.exists ? viewSnap.data() : {};
+        if (views[code]?.viewed) {
+          alert("이미 본 힌트입니다.");
+          return;
         }
-      };
 
-      if (viewSnap.exists()) {
-        await updateDoc(viewRef, record);
-      } else {
-        await setDoc(viewRef, record);
-      }
-
-      // 전역 설정 타이머 확인
-      const configRef = doc(db, "config/hintTimer");
-      const configSnap = await getDoc(configRef);
-      const hintTimerEnabled = configSnap.exists() && configSnap.data().enabled;
-
-      if (hintTimerEnabled) {
-        let duration = parseInt(hint.duration) || 30;
-        const timerDiv = document.getElementById("hintTimer");
-        timerDiv.innerText = `${duration}초 남음`;
-
-        const countdown = setInterval(() => {
-          duration--;
-          if (duration <= 0) {
-            clearInterval(countdown);
-            alert("힌트 노출이 끝났습니다.");
-            resetView();
-          } else {
-            timerDiv.innerText = `${duration}초 남음`;
+        const hintRef = db.collection("codeHints").doc(code);
+        hintRef.get().then((hintSnap) => {
+          if (!hintSnap.exists) {
+            alert("존재하지 않는 코드입니다.");
+            return;
           }
-        }, 1000);
-      }
+
+          const hint = hintSnap.data();
+          document.getElementById("hintText").innerText = hint.text || "";
+          if (hint.imageUrl) {
+            const img = document.getElementById("hintImage");
+            img.src = hint.imageUrl;
+            img.style.display = "block";
+          }
+
+          document.getElementById("hint-section").style.display = "block";
+
+          // 기록 저장
+          const record = {
+            [code]: {
+              viewed: true,
+              startTime: firebase.firestore.FieldValue.serverTimestamp()
+            }
+          };
+
+          if (viewSnap.exists) {
+            viewRef.set(record, { merge: true });
+          } else {
+            viewRef.set(record);
+          }
+
+          // 타이머 설정
+          db.collection("config").doc("hintTimer").get().then((configSnap) => {
+            const hintTimerEnabled = configSnap.exists && configSnap.data().enabled;
+            if (hintTimerEnabled) {
+              let duration = parseInt(hint.duration) || 30;
+              const timerDiv = document.getElementById("hintTimer");
+              timerDiv.innerText = `${duration}초 남음`;
+
+              const countdown = setInterval(() => {
+                duration--;
+                if (duration <= 0) {
+                  clearInterval(countdown);
+                  alert("힌트 노출이 끝났습니다.");
+                  resetView();
+                } else {
+                  timerDiv.innerText = `${duration}초 남음`;
+                }
+              }, 1000);
+            }
+          });
+        });
+      });
     }
 
-    // ✅ 힌트 종료 처리
+    // ✅ 뷰 초기화
     function resetView() {
       document.getElementById("hintText").innerText = "";
       document.getElementById("hintImage").style.display = "none";
