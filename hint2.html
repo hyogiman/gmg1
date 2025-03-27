@@ -39,25 +39,21 @@
   <div class="container">
     <h1>🔐 힌트 코드 입력</h1>
 
-    <!-- 로그인 -->
     <div id="login-section">
       <input type="text" id="teamId" placeholder="팀 ID를 입력하세요" />
       <input type="password" id="teamPw" placeholder="비밀번호를 입력하세요" />
       <button onclick="login()">로그인</button>
     </div>
 
-    <!-- 차단 메시지 -->
     <div id="block-section" class="block-msg" style="display: none;">
       <h2>🚫 아직 프로그램이 시작되지 않았습니다.<br>교육담당자에게 문의하세요.</h2>
     </div>
 
-    <!-- 힌트 코드 입력 -->
     <div id="input-section" style="display: none;">
       <input type="text" id="hintCodeInput" placeholder="힌트 코드를 입력하세요" />
       <button onclick="submitCode()">확인</button>
     </div>
 
-    <!-- 힌트 출력 -->
     <div id="hint-section" class="hint-box" style="display: none;">
       <div id="hintTimer" class="timer"></div>
       <div id="hintText"></div>
@@ -67,7 +63,7 @@
     </div>
   </div>
 
-  <!-- Firebase compat SDK -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 
@@ -84,6 +80,7 @@
     const db = firebase.firestore();
 
     let currentTeamId = null;
+    let countdownInterval = null;
 
     function login() {
       const teamInput = document.getElementById("teamId").value.trim();
@@ -164,10 +161,11 @@
               const timerDiv = document.getElementById("hintTimer");
               timerDiv.innerText = `${duration}초 남음`;
 
-              const countdown = setInterval(() => {
+              countdownInterval = setInterval(() => {
                 duration--;
                 if (duration <= 0) {
-                  clearInterval(countdown);
+                  clearInterval(countdownInterval);
+                  countdownInterval = null;
                   alert("힌트 노출이 끝났습니다.");
                   goBackToLogin();
                 } else {
@@ -181,6 +179,12 @@
     }
 
     function goBackToLogin() {
+      // ✅ 타이머 제거
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
+
       document.getElementById("hintText").innerText = "";
       document.getElementById("hintImage").style.display = "none";
       document.getElementById("hintImage").src = "";
