@@ -11,27 +11,23 @@
       margin: 1rem 0;
       text-align: center;
     }
-
     #countdown {
       font-size: 2.5rem;
       font-weight: bold;
       color: crimson;
       animation: pulse 1s infinite;
     }
-
     @keyframes pulse {
       0% { transform: scale(1); opacity: 1; }
       50% { transform: scale(1.1); opacity: 0.6; }
       100% { transform: scale(1); opacity: 1; }
     }
-
     .danger-note {
       font-size: 0.9rem;
       color: #999;
       text-align: center;
       margin-top: 0.5rem;
     }
-
     .confirm-btn {
       display: block;
       margin: 2rem auto;
@@ -43,7 +39,6 @@
       border-radius: 6px;
       cursor: pointer;
     }
-
     .confirm-btn:hover {
       background-color: #388E3C;
     }
@@ -53,7 +48,6 @@
   <div class="container">
     <h1>🔐 힌트 열람</h1>
 
-    <!-- 로그인 -->
     <div id="loginBox">
       <input type="text" id="teamId" placeholder="팀 ID" />
       <input type="password" id="teamPw" placeholder="비밀번호" />
@@ -62,35 +56,29 @@
       <button onclick="resetSession()">[세션 초기화]</button>
     </div>
 
-    <!-- 공장 코드 입력 -->
     <div id="factoryCodeBox" style="display:none;">
       <input type="text" id="factoryCode" placeholder="공장 코드 (4자리)" maxlength="4" />
       <button onclick="handleFactoryCode()">확인</button>
       <p id="factoryMsg" style="color: red;"></p>
     </div>
 
-    <!-- 힌트 출력 -->
     <div id="hintSection" style="display:none;">
       <h2 id="factoryName">공장명</h2>
-      <img id="hintImage" style="max-width:100%; display:none;" />
-      <p id="hintText"></p>
-
       <div id="countdownBox">
         남은 시간: <span id="countdown"></span>
         <div class="danger-note">※ 새로고침하거나 뒤로가면 힌트는 사라집니다.</div>
       </div>
-
+      <img id="hintImage" style="max-width:100%; display:none;" />
+      <p id="hintText"></p>
       <button class="confirm-btn" onclick="backToLogin()">✅ 확인 완료</button>
     </div>
 
-    <!-- 차단 메시지 -->
     <div id="blockMsg" style="display:none; text-align:center; margin-top:40px;">
       <h2 style="color: red;">🚫 현재 힌트 열람이 중지되어 있습니다.</h2>
       <button onclick="resetSession()">🔄 [세션 초기화]</button>
     </div>
   </div>
 
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
   <script src="assets/js/firebase-init.js"></script>
@@ -198,9 +186,6 @@
       };
       await db.collection("hint_views").doc(currentTeamId).set(update, { merge: true });
 
-      const timeLimit = hint.timeLimit || 60;
-      remainingSeconds = timeLimit;
-
       document.getElementById("factoryCodeBox").style.display = "none";
       document.getElementById("hintSection").style.display = "block";
       document.getElementById("factoryName").innerText = `${factoryId} 힌트`;
@@ -212,7 +197,15 @@
         img.style.display = "block";
       }
 
-      startCountdown();
+      const timerConfig = await db.collection("config").doc("hintTimer").get();
+      const timerEnabled = timerConfig.exists && timerConfig.data().enabled;
+
+      if (timerEnabled) {
+        remainingSeconds = hint.timeLimit || 60;
+        startCountdown();
+      } else {
+        document.getElementById("countdown").innerText = "타이머 없음";
+      }
     }
 
     function startCountdown() {
@@ -226,7 +219,7 @@
         if (remainingSeconds <= 0) {
           clearInterval(countdownInterval);
           alert("시간이 종료되었습니다.");
-          resetSession(); // ✅ 세션 제거 후 복귀
+          resetSession();
         }
       }, 1000);
     }
