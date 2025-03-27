@@ -27,17 +27,22 @@
 </head>
 <body>
   <div class="container">
-    <h1>힌트 코드 입력</h1>
+    <h1>🔐 힌트 코드 입력</h1>
+
+    <!-- 🔐 로그인 -->
     <div id="login-section">
       <input type="text" id="teamId" placeholder="팀 ID를 입력하세요" />
+      <input type="password" id="teamPw" placeholder="비밀번호를 입력하세요" />
       <button onclick="login()">로그인</button>
     </div>
 
+    <!-- 🔑 힌트 코드 입력 -->
     <div id="input-section" style="display: none;">
       <input type="text" id="hintCodeInput" placeholder="힌트 코드를 입력하세요" />
       <button onclick="submitCode()">확인</button>
     </div>
 
+    <!-- 📄 힌트 출력 -->
     <div id="hint-section" class="hint-box" style="display: none;">
       <div id="hintText"></div>
       <img id="hintImage" src="" alt="" style="max-width: 100%; display: none;" />
@@ -45,27 +50,57 @@
     </div>
   </div>
 
+  <!-- Firebase SDK (Module 방식) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-    import { getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    import {
+      getFirestore, doc, getDoc, setDoc, updateDoc, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
 
     const firebaseConfig = {
-      // your firebase config
+      apiKey: "AIzaSyCCxRR6hXvk9Z17eK8H_Vov_TbGX8LzvDs",
+      authDomain: "factory-sim01v.firebaseapp.com",
+      projectId: "factory-sim01v",
+      storageBucket: "factory-sim01v.firebasestorage.app",
+      messagingSenderId: "818674298880",
+      appId: "1:818674298880:web:95307171220da8bd8d28e5"
     };
+
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
     let currentTeamId = null;
 
-    function login() {
+    // ✅ 로그인 처리
+    async function login() {
       const teamInput = document.getElementById("teamId").value.trim();
-      if (!teamInput) return alert("팀 ID를 입력하세요.");
-      currentTeamId = teamInput;
+      const pwInput = document.getElementById("teamPw").value.trim();
 
+      if (!teamInput || !pwInput) {
+        alert("팀 ID와 비밀번호를 모두 입력하세요.");
+        return;
+      }
+
+      const teamRef = doc(db, `teams/${teamInput}`);
+      const teamSnap = await getDoc(teamRef);
+
+      if (!teamSnap.exists()) {
+        alert("존재하지 않는 팀 ID입니다.");
+        return;
+      }
+
+      const teamData = teamSnap.data();
+      if (teamData.password !== pwInput) {
+        alert("비밀번호가 일치하지 않습니다.");
+        return;
+      }
+
+      currentTeamId = teamInput;
       document.getElementById("login-section").style.display = "none";
       document.getElementById("input-section").style.display = "block";
     }
 
+    // ✅ 힌트 코드 제출
     async function submitCode() {
       const code = document.getElementById("hintCodeInput").value.trim().toUpperCase();
       if (!code) return alert("코드를 입력하세요.");
@@ -95,23 +130,21 @@
 
       document.getElementById("hint-section").style.display = "block";
 
-      // 기록 저장
-      await updateDoc(viewRef, {
+      // 열람 기록 저장
+      const record = {
         [code]: {
           viewed: true,
           startTime: serverTimestamp()
         }
-      }).catch(async () => {
-        // 문서가 없으면 새로 생성
-        await setDoc(viewRef, {
-          [code]: {
-            viewed: true,
-            startTime: serverTimestamp()
-          }
-        });
-      });
+      };
 
-      // 전역 설정 체크
+      if (viewSnap.exists()) {
+        await updateDoc(viewRef, record);
+      } else {
+        await setDoc(viewRef, record);
+      }
+
+      // 전역 설정 타이머 확인
       const configRef = doc(db, "config/hintTimer");
       const configSnap = await getDoc(configRef);
       const hintTimerEnabled = configSnap.exists() && configSnap.data().enabled;
@@ -134,6 +167,7 @@
       }
     }
 
+    // ✅ 힌트 종료 처리
     function resetView() {
       document.getElementById("hintText").innerText = "";
       document.getElementById("hintImage").style.display = "none";
