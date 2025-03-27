@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Hint2 관리자</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="assets/css/style.css" />
   <style>
     textarea, input { width: 100%; margin-bottom: 8px; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -22,42 +22,52 @@
     <input type="text" id="description" placeholder="설명 (힌트 부착 위치 등)" />
     <input type="number" id="duration" placeholder="노출 시간 (초)" />
     <textarea id="text" placeholder="힌트 내용 텍스트"></textarea>
-    <input type="text" id="imageUrl" placeholder="힌트 이미지 URL (선택)" />
+    <input type="file" id="imageFile" accept="image/*" />
     <button onclick="saveHint()">저장</button>
 
     <h2>힌트 목록</h2>
     <div id="hintList"></div>
-
-    <hr />
-    <!-- 팀별 열람 기록 -->
-    <h2>열람 기록 조회</h2>
-    <input type="text" id="filterTeamId" placeholder="팀 ID 입력 후 조회" />
-    <button onclick="loadStats()">조회</button>
-    <div id="statsList"></div>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import {
-      getFirestore, doc, getDoc, setDoc, updateDoc,
-      deleteDoc, collection, getDocs
+      getFirestore, doc, setDoc, getDoc, deleteDoc,
+      collection, getDocs
     } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    import {
+      getStorage, ref, uploadBytes, getDownloadURL
+    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js";
 
     const firebaseConfig = {
       // your firebase config
     };
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const storage = getStorage(app);
+
+    function generateBase36ID() {
+      return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+    }
 
     async function saveHint() {
       const code = document.getElementById("code").value.trim().toUpperCase();
       const description = document.getElementById("description").value.trim();
       const duration = parseInt(document.getElementById("duration").value.trim());
       const text = document.getElementById("text").value.trim();
-      const imageUrl = document.getElementById("imageUrl").value.trim();
+      const imageFile = document.getElementById("imageFile").files[0];
 
       if (!code || !text) {
         return alert("코드와 텍스트는 필수입니다.");
+      }
+
+      let imageUrl = null;
+
+      if (imageFile) {
+        const fileName = generateBase36ID() + "_" + imageFile.name;
+        const storageRef = ref(storage, `hints/${code}/${fileName}`);
+        await uploadBytes(storageRef, imageFile);
+        imageUrl = await getDownloadURL(storageRef);
       }
 
       const hintRef = doc(db, `codeHints/${code}`);
@@ -83,78 +93,13 @@
           <div>${data.text}</div>
           ${data.imageUrl ? `<img src="${data.imageUrl}" style="max-width:200px;">` : ""}
           <div>노출 시간: ${data.duration || 0}초</div>
-          <button onclick="editHint('${data.code}')">수정</button>
-          <button onclick="deleteHint('${data.code}')">삭제</button>
           <hr/>
         `;
         listDiv.appendChild(block);
       });
     }
 
-    async function editHint(code) {
-      const hintRef = doc(db, `codeHints/${code}`);
-      const snap = await getDoc(hintRef);
-      if (!snap.exists()) return alert("존재하지 않음");
-
-      const data = snap.data();
-      document.getElementById("code").value = data.code;
-      document.getElementById("description").value = data.description || '';
-      document.getElementById("duration").value = data.duration || 0;
-      document.getElementById("text").value = data.text || '';
-      document.getElementById("imageUrl").value = data.imageUrl || '';
-    }
-
-    async function deleteHint(code) {
-      if (!confirm("정말 삭제하시겠습니까?")) return;
-      await deleteDoc(doc(db, `codeHints/${code}`));
-
-      // 관련 열람 기록 전체 삭제
-      const statsCol = collection(db, "code_hint_views");
-      const statsSnap = await getDocs(statsCol);
-      for (const docSnap of statsSnap.docs) {
-        const teamId = docSnap.id;
-        const viewRef = doc(db, `code_hint_views/${teamId}`);
-        const teamData = docSnap.data();
-
-        if (teamData[code]) {
-          await updateDoc(viewRef, {
-            [code]: deleteField()
-          });
-        }
-      }
-
-      alert("삭제 완료");
-      loadHints();
-    }
-
-    async function loadStats() {
-      const teamId = document.getElementById("filterTeamId").value.trim();
-      if (!teamId) return alert("팀 ID를 입력하세요.");
-
-      const ref = doc(db, `code_hint_views/${teamId}`);
-      const snap = await getDoc(ref);
-      const statsDiv = document.getElementById("statsList");
-      statsDiv.innerHTML = "";
-
-      if (!snap.exists()) {
-        statsDiv.innerHTML = "<p>열람 기록 없음</p>";
-        return;
-      }
-
-      const data = snap.data();
-      const rows = Object.entries(data).map(([code, value]) => {
-        return `<tr><td>${code}</td><td>${value.viewed ? 'O' : '-'}</td><td>${value.startTime?.toDate().toLocaleString() || ''}</td></tr>`;
-      });
-
-      statsDiv.innerHTML = `
-        <table>
-          <thead><tr><th>코드</th><th>Viewed</th><th>시작 시간</th></tr></thead>
-          <tbody>${rows.join('')}</tbody>
-        </table>
-      `;
-    }
-
-    // 초기 힌트 목록 로딩
+    // 초기 로딩
     loadHints();
   </script>
 </body>
