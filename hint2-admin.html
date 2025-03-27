@@ -7,41 +7,27 @@
   <link rel="stylesheet" href="assets/css/style.css" />
   <style>
     body { font-family: sans-serif; }
-    .menu {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-    .menu button {
-      padding: 8px 12px;
-      border: none;
-      background: #ddd;
-      cursor: pointer;
-    }
-    .menu button.active {
-      background: #4CAF50;
-      color: white;
-    }
+    .menu { display: flex; gap: 10px; margin-bottom: 16px; }
+    .menu button { padding: 8px 12px; border: none; background: #ddd; cursor: pointer; }
+    .menu button.active { background: #4CAF50; color: white; }
     .tab { display: none; }
     .tab.active { display: block; }
     textarea, input { width: 100%; margin-bottom: 8px; }
     img { max-width: 200px; margin-top: 10px; display: block; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 8px;
-      text-align: center;
-    }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
     .delete-btn {
       background-color: #e74c3c;
       color: white;
       border: none;
       padding: 4px 8px;
       cursor: pointer;
+    }
+    #editBox {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-top: 10px;
+      background: #f9f9f9;
     }
   </style>
 </head>
@@ -56,7 +42,7 @@
 
     <!-- 힌트 등록 탭 -->
     <div id="hintTab" class="tab active">
-      <h2>힌트 등록</h2>
+      <h2>➕ 새 힌트 등록</h2>
       <input type="text" id="code" placeholder="힌트 코드 (예: ABC123)" />
       <input type="text" id="description" placeholder="설명 (설치 위치 등)" />
       <input type="number" id="duration" placeholder="노출 시간 (초)" />
@@ -65,8 +51,21 @@
       <img id="preview" style="display:none;" />
       <button onclick="saveHint()">저장</button>
 
-      <h2>힌트 목록</h2>
+      <h2>📋 힌트 목록</h2>
       <div id="hintList"></div>
+
+      <!-- ✏️ 힌트 수정 영역 -->
+      <div id="editBox" style="display:none;">
+        <h3>✏️ 힌트 수정</h3>
+        <input type="text" id="editCode" disabled />
+        <input type="text" id="editDescription" />
+        <input type="number" id="editDuration" />
+        <textarea id="editText"></textarea>
+        <input type="file" id="editImageFile" accept="image/*" />
+        <img id="editPreview" style="display:none;" />
+        <button onclick="saveEditedHint()">저장</button>
+        <button onclick="cancelEdit()">취소</button>
+      </div>
     </div>
 
     <!-- 열람 기록 탭 -->
@@ -78,7 +77,7 @@
     </div>
   </div>
 
-  <!-- Firebase SDK -->
+  <!-- Firebase compat SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 
@@ -94,12 +93,9 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    let editingCode = null;
-
     function showTab(id, btn) {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       document.getElementById(id).classList.add('active');
-
       document.querySelectorAll('.menu button').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
     }
@@ -126,19 +122,18 @@
       const description = document.getElementById("description").value.trim();
       const duration = parseInt(document.getElementById("duration").value.trim());
       const text = document.getElementById("text").value.trim();
-      const imageFile = document.getElementById("imageFile").files[0];
+      const file = document.getElementById("imageFile").files[0];
 
       if (!code || !text) return alert("코드와 텍스트는 필수입니다.");
 
       let imageUrl = null;
-      if (imageFile) imageUrl = await toBase64(imageFile);
+      if (file) imageUrl = await toBase64(file);
 
       await db.doc(`codeHints/${code}`).set({
         code, description, duration, text, imageUrl
       });
 
-      alert(editingCode ? "수정 완료!" : "등록 완료!");
-      editingCode = null;
+      alert("등록 완료!");
       loadHints();
     }
 
@@ -165,21 +160,51 @@
 
     async function editHint(code) {
       const snap = await db.doc(`codeHints/${code}`).get();
-      if (!snap.exists) return alert("해당 힌트를 찾을 수 없습니다.");
-      const data = snap.data();
+      if (!snap.exists) return alert("힌트를 찾을 수 없습니다.");
+      const h = snap.data();
 
-      document.getElementById("code").value = data.code || "";
-      document.getElementById("description").value = data.description || "";
-      document.getElementById("duration").value = data.duration || "";
-      document.getElementById("text").value = data.text || "";
-
-      if (data.imageUrl) {
-        document.getElementById("preview").src = data.imageUrl;
-        document.getElementById("preview").style.display = "block";
+      document.getElementById("editCode").value = code;
+      document.getElementById("editDescription").value = h.description || "";
+      document.getElementById("editDuration").value = h.duration || "";
+      document.getElementById("editText").value = h.text || "";
+      if (h.imageUrl) {
+        document.getElementById("editPreview").src = h.imageUrl;
+        document.getElementById("editPreview").style.display = "block";
       }
 
-      editingCode = code;
+      document.getElementById("editBox").style.display = "block";
     }
+
+    async function saveEditedHint() {
+      const code = document.getElementById("editCode").value;
+      const description = document.getElementById("editDescription").value;
+      const duration = parseInt(document.getElementById("editDuration").value);
+      const text = document.getElementById("editText").value.trim();
+      const file = document.getElementById("editImageFile").files[0];
+      let imageUrl = document.getElementById("editPreview").src;
+
+      if (file) imageUrl = await toBase64(file);
+
+      await db.doc(`codeHints/${code}`).set({
+        code, description, duration, text, imageUrl
+      });
+
+      alert("수정 완료!");
+      document.getElementById("editBox").style.display = "none";
+      loadHints();
+    }
+
+    function cancelEdit() {
+      document.getElementById("editBox").style.display = "none";
+    }
+
+    document.getElementById("editImageFile").addEventListener("change", async e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const base64 = await toBase64(file);
+      document.getElementById("editPreview").src = base64;
+      document.getElementById("editPreview").style.display = "block";
+    });
 
     async function deleteHint(code) {
       if (!confirm(`[${code}] 힌트를 삭제하시겠습니까?`)) return;
@@ -191,7 +216,6 @@
     async function loadTeamList() {
       const selector = document.getElementById("teamIdSelect");
       selector.innerHTML = "<option value=''>-- 팀 선택 --</option>";
-
       const snap = await db.collection("teams").get();
       snap.forEach(doc => {
         selector.innerHTML += `<option value="${doc.id}">${doc.id}</option>`;
@@ -214,7 +238,6 @@
 
       const data = snap.data();
       let html = "<table><tr><th>코드</th><th>열람</th><th>시간</th><th>삭제</th></tr>";
-
       for (const code in data) {
         const view = data[code];
         const time = view.startTime?.toDate().toLocaleString("ko-KR") || "-";
@@ -227,24 +250,19 @@
           </tr>
         `;
       }
-
       html += "</table>";
       table.innerHTML = html;
     }
 
     async function deleteView(teamId, code) {
-      const ok = confirm(`정말 삭제하시겠습니까?\n${teamId} - ${code}`);
-      if (!ok) return;
-
+      if (!confirm(`${teamId} - ${code} 기록을 삭제할까요?`)) return;
       const update = {};
       update[code] = firebase.firestore.FieldValue.delete();
       await db.collection("code_hint_views").doc(teamId).set(update, { merge: true });
-
       alert("삭제 완료!");
       loadViews();
     }
 
-    // ✅ 초기 로드
     loadHints();
     loadTeamList();
   </script>
