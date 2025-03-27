@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hint2 관리자</title>
   <link rel="stylesheet" href="assets/css/style.css" />
   <style>
@@ -10,46 +10,44 @@
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
     th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
     .code-block { font-family: monospace; background: #f4f4f4; padding: 6px; }
+    img { max-width: 200px; margin: 8px 0; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Hint2 관리자 페이지</h1>
 
-    <!-- 힌트 등록/수정 폼 -->
     <h2>힌트 등록</h2>
     <input type="text" id="code" placeholder="힌트 코드 (예: ABC123)" />
-    <input type="text" id="description" placeholder="설명 (힌트 부착 위치 등)" />
+    <input type="text" id="description" placeholder="설명 (부착 위치 등)" />
     <input type="number" id="duration" placeholder="노출 시간 (초)" />
-    <textarea id="text" placeholder="힌트 내용 텍스트"></textarea>
+    <textarea id="text" placeholder="힌트 텍스트 입력"></textarea>
     <input type="file" id="imageFile" accept="image/*" />
     <button onclick="saveHint()">저장</button>
 
-    <h2>힌트 목록</h2>
+    <h2>등록된 힌트 목록</h2>
     <div id="hintList"></div>
   </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-    import {
-      getFirestore, doc, setDoc, getDoc, deleteDoc,
-      collection, getDocs
-    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
-    import {
-      getStorage, ref, uploadBytes, getDownloadURL
-    } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js";
-
+  <!-- Firebase SDK (Compat 버전) -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <script>
+    // 1. Firebase 초기화
     const firebaseConfig = {
-      // your firebase config
+      // Firebase config 삽입
     };
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const storage = getStorage(app);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const storage = firebase.storage();
 
+    // 2. 랜덤 ID 생성 (base36)
     function generateBase36ID() {
       return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
     }
 
+    // 3. 힌트 저장 함수
     async function saveHint() {
       const code = document.getElementById("code").value.trim().toUpperCase();
       const description = document.getElementById("description").value.trim();
@@ -57,49 +55,45 @@
       const text = document.getElementById("text").value.trim();
       const imageFile = document.getElementById("imageFile").files[0];
 
-      if (!code || !text) {
-        return alert("코드와 텍스트는 필수입니다.");
-      }
+      if (!code || !text) return alert("코드와 텍스트는 필수입니다.");
 
       let imageUrl = null;
-
       if (imageFile) {
-        const fileName = generateBase36ID() + "_" + imageFile.name;
-        const storageRef = ref(storage, `hints/${code}/${fileName}`);
-        await uploadBytes(storageRef, imageFile);
-        imageUrl = await getDownloadURL(storageRef);
+        const filename = generateBase36ID() + "_" + imageFile.name;
+        const ref = storage.ref(`hints/${code}/${filename}`);
+        await ref.put(imageFile);
+        imageUrl = await ref.getDownloadURL();
       }
 
-      const hintRef = doc(db, `codeHints/${code}`);
-      await setDoc(hintRef, {
+      await db.doc(`codeHints/${code}`).set({
         code, description, duration, text, imageUrl
       });
 
-      alert("저장 완료");
+      alert("저장 완료!");
       loadHints();
     }
 
+    // 4. 힌트 목록 불러오기
     async function loadHints() {
-      const colRef = collection(db, "codeHints");
-      const snap = await getDocs(colRef);
-      const listDiv = document.getElementById("hintList");
-      listDiv.innerHTML = "";
+      const container = document.getElementById("hintList");
+      container.innerHTML = "";
 
-      snap.forEach(docSnap => {
-        const data = docSnap.data();
-        const block = document.createElement("div");
-        block.innerHTML = `
+      const snap = await db.collection("codeHints").get();
+      snap.forEach(doc => {
+        const data = doc.data();
+        const div = document.createElement("div");
+        div.innerHTML = `
           <div class="code-block"><b>${data.code}</b> - ${data.description || ''}</div>
           <div>${data.text}</div>
-          ${data.imageUrl ? `<img src="${data.imageUrl}" style="max-width:200px;">` : ""}
+          ${data.imageUrl ? `<img src="${data.imageUrl}" alt="힌트 이미지" />` : ""}
           <div>노출 시간: ${data.duration || 0}초</div>
           <hr/>
         `;
-        listDiv.appendChild(block);
+        container.appendChild(div);
       });
     }
 
-    // 초기 로딩
+    // 5. 페이지 로딩 시 목록 불러오기
     loadHints();
   </script>
 </body>
